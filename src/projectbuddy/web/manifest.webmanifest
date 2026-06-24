@@ -1,0 +1,19 @@
+{
+  "name": "Buddy",
+  "short_name": "Buddy",
+  "description": "A local-first AI companion for children.",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#060e18",
+  "theme_color": "#060e18",
+  "icons": [
+    {
+      "src": "/app/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

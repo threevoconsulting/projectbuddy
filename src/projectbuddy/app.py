@@ -1,0 +1,57 @@
+"""FastAPI application factory.
+
+Wires the adapter container (lifespan), mounts the portable face front-end as static
+assets, and registers the REST routers. Build with
+``uvicorn projectbuddy.app:create_app --factory``.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+
+from projectbuddy import __version__
+from projectbuddy.api import converse, person, session
+from projectbuddy.config import Settings, get_settings
+from projectbuddy.deps import Container
+from projectbuddy.protocol.rest import HealthResponse
+
+_WEB_DIR = Path(__file__).parent / "web"
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        container = Container.build(settings)
+        app.state.container = container
+        await container.llm.warmup()  # pre-warm to protect first-token latency
+        try:
+            yield
+        finally:
+            container.db.close()
+
+    app = FastAPI(title="Buddy", version=__version__, lifespan=lifespan)
+
+    @app.get("/health", response_model=HealthResponse)
+    async def health() -> HealthResponse:
+        return HealthResponse(version=__version__)
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url="/app/")
+
+    app.include_router(converse.router)
+    app.include_router(person.router)
+    app.include_router(session.router)
+
+    # The face (vanilla web UI / PWA). Same artifact runs in a Pi Chromium kiosk.
+    app.mount("/app", StaticFiles(directory=_WEB_DIR, html=True), name="web")
+
+    return app
