@@ -105,3 +105,19 @@ async def run_greeting(
 
     c.memory.commit_buddy_line(session_id=session.id, reply=reply)
     c.persons.touch_last_seen(person.id)
+
+
+# Buddy's first line to a face it doesn't recognize. Fixed (no LLM): fast, always
+# child-safe, and consistent — the camera flow plays it when a new person appears.
+INTRO_LINE = "Hi! My name is Buddy. What's your name?"
+
+
+async def run_intro(c: Container) -> AsyncIterator[ServerFrame]:
+    """Greet an unrecognized new face with a fixed, friendly introduction."""
+    from projectbuddy.protocol.llm_envelope import Emotion
+
+    yield EmotionFrame(value=Emotion.happy)
+    yield StateFrame(value="speaking")
+    async for chunk in c.tts.synthesize(INTRO_LINE):
+        yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
+    yield FinalFrame(transcript="", say=INTRO_LINE)

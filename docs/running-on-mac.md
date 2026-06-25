@@ -21,9 +21,9 @@ LLM choice by RAM (verify exact tags before pulling; all must be commercially us
 
 | Mac RAM | Model | Notes |
 |---|---|---|
-| 8 GB | `gemma3:4b` / `llama3.2:3b` | "small brain"; fastest |
-| 16 GB | `qwen3:8b` (default) | best warmth/latency balance |
-| 32 GB+ | `gemma3:27b` | higher quality |
+| 8 GB | `llama3.2:3b` (default) / `gemma3:4b` | "small brain"; fastest responses |
+| 16 GB | `qwen3:8b` | warmer/smarter, a bit slower |
+| 32 GB+ | `gemma3:27b` | highest quality |
 
 Use Q4_K_M quantization; keep `OLLAMA_MAX_LOADED_MODELS=1` and a 4–8k context to protect
 latency and memory.

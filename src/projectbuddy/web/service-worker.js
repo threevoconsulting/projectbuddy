@@ -1,6 +1,6 @@
 // Caches the static face shell so the kiosk starts even if the network blips.
 // Bump CACHE_VERSION whenever the shell assets change (avoids serving stale faces).
-const CACHE_VERSION = 'buddy-shell-v8';
+const CACHE_VERSION = 'buddy-shell-v9';
 const SHELL = [
   '/app/',
   '/app/index.html',

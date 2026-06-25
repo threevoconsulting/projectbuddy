@@ -26,6 +26,7 @@ You MUST reply with ONLY a single JSON object, no prose around it, in exactly th
 Rules:
 - "emotion" must be exactly one of the eight words above.
 - "say" is what Buddy speaks out loud — keep it to one to three short sentences.
+  Use plain words only: no emojis, no symbols, no asterisks — it is read aloud.
 - "remember" is optional; include a fact only when the child shares a durable
   preference or detail worth recalling later (e.g. a favorite animal). Otherwise use [].
 - Output the JSON object and nothing else.

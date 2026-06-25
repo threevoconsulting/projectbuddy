@@ -137,13 +137,25 @@ window.BuddyWS = (function () {
       }
     }
 
+    // Ask Buddy to introduce itself to an unrecognized new face (M9). No session.
+    async function intro() {
+      try {
+        await ensureSocket();
+      } catch (_) {
+        return;
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'intro' }));
+      }
+    }
+
     function close() {
       manualClose = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) ws.close();
     }
 
-    return { startTalking, stopTalking, open, close, greet };
+    return { startTalking, stopTalking, open, close, greet, intro };
   }
 
   return { connect };

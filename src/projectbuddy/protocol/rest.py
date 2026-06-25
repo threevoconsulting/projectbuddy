@@ -138,6 +138,7 @@ class RecognizeResponse(BaseModel):
     person_id: int | None = None
     display_name: str | None = None
     confidence: float
+    face_present: bool = False  # a face was detected (matched or not) vs an empty frame
 
 
 class RetentionRunResponse(BaseModel):

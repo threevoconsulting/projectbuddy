@@ -123,11 +123,11 @@ async def recognize_face(
     body: RecognizeRequest, c: Container = Depends(get_container)
 ) -> RecognizeResponse:
     image = _decode(body.image)
-    if not await c.liveness.check(image):  # spoof/empty → no match
-        return RecognizeResponse(matched=False, person_id=None, confidence=0.0)
+    if not await c.liveness.check(image):  # spoof/empty → no face
+        return RecognizeResponse(matched=False, confidence=0.0, face_present=False)
     probe = await c.recognition.embed(image)
-    if probe is None:
-        return RecognizeResponse(matched=False, person_id=None, confidence=0.0)
+    if probe is None:  # no face in the frame
+        return RecognizeResponse(matched=False, confidence=0.0, face_present=False)
     enrolled = [(row.person_id, row.vector) for row in c.face_embeddings.list_all()]
     person_id, score = best_match(probe, enrolled, c.settings.recognition_match_threshold)
     display_name = None
@@ -139,6 +139,7 @@ async def recognize_face(
         person_id=person_id,
         display_name=display_name,
         confidence=score,
+        face_present=True,  # a face is here, even if we don't know whose
     )
 
 

@@ -86,6 +86,25 @@ def test_hello_streams_a_spoken_greeting(client: TestClient) -> None:
         assert ws.receive_json() == {"type": "state", "value": "listening"}
 
 
+def test_intro_streams_a_self_introduction(client: TestClient) -> None:
+    with client.websocket_connect("/ws/converse") as ws:
+        assert ws.receive_json()["value"] == "listening"
+
+        # The camera sees an unrecognized face → Buddy introduces itself (M9).
+        ws.send_json({"type": "intro"})
+        frames: list[dict] = []
+        while True:
+            frame = ws.receive_json()
+            frames.append(frame)
+            if frame["type"] == "final":
+                break
+
+        types = [f["type"] for f in frames]
+        assert "emotion" in types and "audio" in types and types[-1] == "final"
+        assert "Buddy" in frames[-1]["say"] and "name" in frames[-1]["say"].lower()
+        assert ws.receive_json() == {"type": "state", "value": "listening"}
+
+
 def test_audio_chunks_are_base64_pcm(client: TestClient) -> None:
     with client.websocket_connect("/ws/converse") as ws:
         ws.receive_json()  # listening

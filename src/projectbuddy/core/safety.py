@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from projectbuddy.core.text import for_speech
 from projectbuddy.protocol.llm_envelope import BuddyReply, Emotion
 
 # Deny-list grouped by category. Conservative on purpose: for a young child, a false
@@ -55,7 +56,10 @@ def check(text: str) -> SafetyResult:
 
 
 def enforce(reply: BuddyReply) -> BuddyReply:
-    """Return ``reply`` unchanged if safe, else a safe substitute."""
+    """Block unsafe lines, then strip emoji so nothing odd gets read aloud."""
     if check(reply.say).blocked:
         return _SAFE_SUBSTITUTE.model_copy(deep=True)
+    spoken = for_speech(reply.say) or "Okay!"
+    if spoken != reply.say:
+        return reply.model_copy(update={"say": spoken})
     return reply

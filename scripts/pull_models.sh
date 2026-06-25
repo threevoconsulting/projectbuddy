@@ -3,7 +3,7 @@
 # Nothing here is required for CI or the faked dev stack.
 set -euo pipefail
 
-MODEL="${PB_OLLAMA_MODEL:-qwen3:8b}"
+MODEL="${PB_OLLAMA_MODEL:-llama3.2:3b}"
 
 echo "==> Pulling Ollama model: $MODEL"
 if command -v ollama >/dev/null 2>&1; then

@@ -61,6 +61,12 @@ def test_recognize_with_no_enrollments_returns_no_match(client: TestClient) -> N
     assert r.status_code == 200 and r.json()["matched"] is False
 
 
+def test_recognize_reports_face_present(client: TestClient) -> None:
+    # A frame with a (fake) face is "present" even when unknown; an empty frame is not.
+    assert client.post("/recognize", json={"image": _b64(b"a-face")}).json()["face_present"] is True
+    assert client.post("/recognize", json={"image": _b64(b"")}).json()["face_present"] is False
+
+
 def test_enroll_with_no_face_is_400(client: TestClient) -> None:
     pid = _make_person(client)
     client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})

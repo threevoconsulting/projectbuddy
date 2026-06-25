@@ -17,13 +17,14 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from projectbuddy.deps import Container
-from projectbuddy.orchestrator.turn import resolve_session, run_greeting, run_turn
+from projectbuddy.orchestrator.turn import resolve_session, run_greeting, run_intro, run_turn
 from projectbuddy.protocol.llm_envelope import Emotion
 from projectbuddy.protocol.ws import (
     ClientAudioFrame,
     EndFrame,
     FinalFrame,
     HelloFrame,
+    IntroFrame,
     StartFrame,
     StateFrame,
 )
@@ -58,6 +59,13 @@ async def ws_converse(ws: WebSocket) -> None:
                 # The camera recognized someone — greet them out loud (M8).
                 hello = HelloFrame.model_validate(msg)
                 session_id = await _handle_greeting(ws, container, hello.session_id)
+                await ws.send_json(StateFrame(value="listening").model_dump())
+
+            elif kind == "intro":
+                # The camera sees an unrecognized new face — Buddy introduces itself.
+                IntroFrame.model_validate(msg)
+                async for out in run_intro(container):
+                    await ws.send_json(out.model_dump())
                 await ws.send_json(StateFrame(value="listening").model_dump())
 
             elif kind == "audio":

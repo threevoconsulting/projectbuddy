@@ -70,6 +70,12 @@ class HelloFrame(BaseModel):
     session_id: int | None = None
 
 
+class IntroFrame(BaseModel):
+    """Ask Buddy to introduce itself to an unrecognized new face (no session needed)."""
+
+    type: Literal["intro"] = "intro"
+
+
 class ClientAudioFrame(BaseModel):
     type: Literal["audio"] = "audio"
     chunk: str  # base64-encoded 16 kHz mono 16-bit PCM
@@ -79,4 +85,4 @@ class EndFrame(BaseModel):
     type: Literal["end"] = "end"
 
 
-ClientFrame = StartFrame | HelloFrame | ClientAudioFrame | EndFrame
+ClientFrame = StartFrame | HelloFrame | IntroFrame | ClientAudioFrame | EndFrame

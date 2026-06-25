@@ -142,6 +142,8 @@ function speakAloud(text) {
 let sessionId = null;
 let currentPersonId = null;
 let requestGreeting = null; // set to voice.greet once the WS client is wired
+let requestIntro = null; // set to voice.intro — used for unrecognized new faces
+let introduced = false; // have we introduced to the current unknown face?
 
 async function sendText(text) {
   if (!text.trim()) return;
@@ -287,16 +289,28 @@ function addEnrollButton(grabFrame) {
   document.getElementById('stage').appendChild(btn);
 }
 
-// Poll recognition; when the recognized person changes, bind the conversation to them.
+// Poll recognition. Known face → personalized greeting + bind their session. Unknown
+// face → Buddy introduces itself once and asks for a name. No face → reset so the next
+// arrival is greeted/introduced afresh.
 function startRecognitionLoop(grabFrame) {
   setInterval(async () => {
-    if (enrolling || buddy.state === 'thinking') return; // don't fight a turn
+    // Don't interrupt an active turn.
+    if (enrolling || buddy.state === 'thinking' || buddy.state === 'speaking') return;
     const image = grabFrame();
     if (!image) return;
     try {
       const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
       if (r.matched && r.person_id !== currentPersonId) {
+        introduced = false;
         await bindPerson(r.person_id, r.display_name);
+      } else if (!r.matched && r.face_present && !introduced) {
+        // A new, unrecognized face — say hello and ask their name (once).
+        introduced = true;
+        currentPersonId = null;
+        caption.textContent = "Hi! I'm Buddy. What's your name?";
+        if (requestIntro) requestIntro();
+      } else if (!r.face_present) {
+        introduced = false; // nobody there — re-introduce when someone returns
       }
     } catch (_) {
       /* keep trying on the next tick */
@@ -367,6 +381,7 @@ if (params.get('mock') === '1') {
     getSessionId: () => sessionId,
   });
   requestGreeting = voice.greet; // let recognition trigger a spoken greeting
+  requestIntro = voice.intro; // …and a self-introduction for unknown faces
   const press = (e) => {
     e.preventDefault();
     talkBtn.classList.add('active');
