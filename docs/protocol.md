@@ -37,7 +37,8 @@ instruction, then falls back to a safe default
 | `GET` | `/person/{id}/facts` | what Buddy remembers (parent transparency) |
 | `POST`/`GET` | `/person/{id}/consent` | grant/revoke · list parental consent (M7) |
 | `POST` | `/person/{id}/enroll` | enroll a face — base64 frames; **403** without consent (M7) |
-| `POST` | `/recognize` | match a base64 face frame against enrolled people (M7) |
+| `POST` | `/recognize` | match a base64 face frame against enrolled people (M7); returns `display_name` |
+| `POST` | `/retention/run` | delete face data past its retention date now (M8) |
 
 ## WebSocket `/ws/converse`
 
@@ -47,9 +48,14 @@ a session; otherwise the connection lazily creates one and reuses it.
 
 ```
 {"type":"start","session_id":7}          ← optional
+{"type":"hello","session_id":7}          ← M8: greet the recognized person out loud
 {"type":"audio","chunk":"<base64 pcm>"}  ← 16 kHz mono 16-bit PCM
 {"type":"end"}
 ```
+
+`hello` streams a greeting turn (same `emotion → speaking → audio → final` frames) without
+needing a spoken utterance — the camera-recognition flow sends it when it identifies who's
+there.
 
 Server → client during one turn, in order (**the face leads the voice**):
 

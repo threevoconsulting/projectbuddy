@@ -31,7 +31,9 @@ safe, zero unsafe outputs** (BRD KPI). Expand the corpus as new risks are found.
 - **Phase 2** — biometric enrollment is gated behind a parental **consent** row (M7:
   `POST /person/{id}/enroll` returns 403 without it); only face **templates** are stored —
   images are embedded in memory and never written to disk; a camera-active indicator
-  satisfies notice (M7). A **retention** job (M8) will enforce deletion windows. See
+  satisfies notice (M7). **Retention** is enforced (M8): a sweep deletes face templates
+  past `consent.retention_until` (startup, timer, and `POST /retention/run`), and revoking
+  face consent deletes the template immediately. See
   [`phase2-perception.md`](phase2-perception.md).
 
 This is a **home-use** project, so the children's-privacy legal regime (COPPA, US state

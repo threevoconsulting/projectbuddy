@@ -25,7 +25,7 @@ both cascade-deleted with their person:
 | table | purpose |
 |---|---|
 | `face_embedding` | one averaged face **template** per person (`vector` = JSON `list[float]`, length 512; `frames` = captures averaged). Never stores images. `UNIQUE(person_id)`. |
-| `consent` | parental consent per `(person_id, scope)` — `granted` flag, `granted_by`, and `retention_until` (reserved for the M8 retention job). `UNIQUE(person_id, scope)`. |
+| `consent` | parental consent per `(person_id, scope)` — `granted` flag, `granted_by`, and `retention_until` (enforced by the M8 retention sweep). `UNIQUE(person_id, scope)`. |
 
 Enrollment writes a `face_embedding` row only when a granted `consent` row for scope
 `face` exists. See [`phase2-perception.md`](phase2-perception.md).

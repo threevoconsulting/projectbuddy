@@ -24,20 +24,33 @@ endpoints in the meantime).
   granted `consent` row for scope `face` exists. It averages one or more capture frames
   into one vector per person. Consent is managed via `POST`/`GET /person/{id}/consent`.
 - **Recognition** — `POST /recognize` matches against enrolled vectors using
-  `PB_RECOGNITION_MATCH_THRESHOLD` (default 0.6 — conservative, to avoid sibling
-  confusion). Re-enrollment is just another enroll (kids' faces change fast).
+  `PB_RECOGNITION_MATCH_THRESHOLD` (default 0.45 — ArcFace same-person cosine is ~0.5–0.7,
+  different-person ~0.0–0.3). Re-enrollment is just another enroll (kids' faces change
+  fast). The frontend recognizes before enrolling, so a known face is greeted rather
+  than duplicated.
 - **Templates, not media** — images arrive base64 in JSON, are embedded in memory, and are
   **never written to disk**; only the vector is persisted.
 - **Camera-active indicator** in the face UI shows whenever a camera stream is live.
 
-## Continuity & privacy (M8)
+## Continuity & privacy (M8) — implemented
 
-- Per-person profiles, facts, and sessions; on recognizing a returning person, load the
-  latest summary + facts and resume.
-- **Retention job** enforces `retention_until`; `DELETE /person/{id}` cascades (verified by
-  compliance tests).
-- Optional **liveness** (Silent-Face MiniFASNet, Apache-2.0) to reject photo spoofs.
-- Hardware **camera LED** to complement the on-screen camera-active indicator (added in M7).
+The camera and chat are one experience: on the main `/app/` screen Buddy sees who's
+there, binds the conversation to their profile, and greets them out loud.
+
+- **Recognize → resume.** The frontend polls `/recognize`; when the person changes it
+  calls `POST /session/start` for them, so voice and text turns use *their* memory
+  (facts + last-session summary). The WS sends a `start` frame so spoken turns bind too.
+- **Spoken greeting.** A WS `hello` frame runs `run_greeting`: Buddy welcomes the person
+  by name in its real voice, drawing on what it remembers (no synthetic child turn is
+  stored). Face leads the voice, same as a normal turn.
+- **Retention job.** `core/retention.sweep_face_retention` deletes face embeddings past
+  `consent.retention_until` and revokes them. It runs at startup, on a timer
+  (`PB_RETENTION_SWEEP_SECONDS`, default 6 h), and on demand via `POST /retention/run`.
+- **Revoke = delete.** Revoking face consent (`POST /person/{id}/consent` with
+  `granted:false`) removes the stored template immediately. `DELETE /person/{id}` still
+  cascades to everything (verified by tests).
+- **Deferred:** optional **liveness** (Silent-Face MiniFASNet) to reject photo spoofs,
+  and a hardware **camera LED** to complement the on-screen indicator.
 
 ## Parent companion app (M9)
 
