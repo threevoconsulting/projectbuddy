@@ -60,8 +60,11 @@ async def run_turn(
     reply = await parse_reply(raw, messages, c.llm)
     reply = safety.enforce(reply)
 
-    # Face leads the voice: emotion before any audio.
+    # Face leads the voice: emotion before any audio. The `speaking` state then
+    # tells the client the reply is on its way (so the face leaves `thinking` even
+    # before the first audio chunk arrives), while the emotion already set the mood.
     yield EmotionFrame(value=reply.emotion)
+    yield StateFrame(value="speaking")
     async for chunk in c.tts.synthesize(reply.say):
         yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
 

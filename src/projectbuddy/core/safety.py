@@ -59,4 +59,3 @@ def enforce(reply: BuddyReply) -> BuddyReply:
     if check(reply.say).blocked:
         return _SAFE_SUBSTITUTE.model_copy(deep=True)
     return reply
-

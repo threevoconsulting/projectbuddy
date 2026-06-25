@@ -12,6 +12,9 @@
 </head>
 <body>
   <div id="stage">
+    <!-- Camera-active indicator (M7): shown only while a camera stream is live. -->
+    <div id="camera-indicator"><span class="dot"></span>CAMERA ON</div>
+
     <!-- The face. A pure function of (emotion, amplitude); see js/face.js. -->
     <svg id="face" viewBox="0 0 200 200" aria-label="Buddy's face">
       <g id="head">

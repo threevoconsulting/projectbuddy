@@ -110,6 +110,45 @@ body.kiosk #controls { display: none; }
 }
 #talk-btn.active { background: #ff6b6b; box-shadow: 0 0 0 4px rgba(255,107,107,0.3); }
 
+/* Blink (M6): a quick eye-lid squash, toggled by the blink scheduler in app.js while
+   Buddy is at rest or speaking. Applied to #head so both eyes blink together. */
+#head.blink #eye-l-sclera, #head.blink #eye-r-sclera,
+#head.blink #eye-l-iris, #head.blink #eye-r-iris,
+#head.blink #eye-l-pupil, #head.blink #eye-r-pupil {
+  transform: scaleY(0.1);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 90ms ease-in-out;
+}
+
+/* Camera-active indicator (M7): a small dot + label shown only while a camera stream
+   is live, so a child/parent always knows when Buddy can see. */
+#camera-indicator {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.85);
+  background: rgba(0,0,0,0.35);
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+#camera-indicator.active { display: flex; }
+#camera-indicator .dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #ff5a5a; animation: camPulse 1.4s ease-in-out infinite;
+}
+@keyframes camPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
+
+/* Kiosk hardening (M6, ?kiosk=1): no text selection, hide the cursor when idle. */
+body.kiosk { user-select: none; -webkit-user-select: none; }
+body.kiosk.cursor-hidden { cursor: none; }
+
 /* --- Motion (from the mockup) --- */
 @keyframes buddyBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
 @keyframes buddyBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }

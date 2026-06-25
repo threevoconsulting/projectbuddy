@@ -1,21 +1,89 @@
-// Wiring for the Phase-1 text demo + the mock harness.
+// Wiring for the Phase-1 text demo + the mock harness + behaviour polish (M6).
 //
-//   /app/            → type to Buddy; backend returns {emotion, say}, face reacts.
-//   /app/?mock=1     → cycle all 8 emotions with a fake amplitude oscillator
-//                      (no backend / no models needed — pure face QA).
-//   /app/?kiosk=1    → hide the text controls (robot-screen layout).
+//   /app/            → type or hold-to-talk; backend returns {emotion, say}, face reacts.
+//   /app/?mock=1     → cycle all 8 emotions (incl. sleepy) with a fake amplitude
+//                      oscillator (no backend / no models — pure face QA).
+//   /app/?kiosk=1    → robot-screen layout: hide controls, keep screen awake, hide the
+//                      cursor when idle, suppress context menu / zoom.
 //
-// Voice in/out (M4) will replace the text input with mic capture + streamed TTS,
-// reusing the same BuddyState transitions.
+// Buddy also blinks at rest and drifts to sleep after a stretch of no interaction.
 
 const params = new URLSearchParams(location.search);
 const buddy = new BuddyState(window.BuddyFace.render);
 const caption = document.getElementById('caption');
 
-if (params.get('kiosk') === '1') document.body.classList.add('kiosk');
+const KIOSK = params.get('kiosk') === '1';
+if (KIOSK) document.body.classList.add('kiosk');
 
 buddy.toIdle();
 caption.textContent = "Hi! I'm Buddy. Talk to me!";
+
+// --- Camera-active indicator (M7): the only owner of the on-screen "camera on" cue. ---
+window.BuddyCamera = {
+  show() { document.getElementById('camera-indicator')?.classList.add('active'); },
+  hide() { document.getElementById('camera-indicator')?.classList.remove('active'); },
+};
+
+// --- Blinking: a quick lid-squash every few seconds while at rest or speaking. ---
+function startBlink() {
+  const head = document.getElementById('head');
+  (function loop() {
+    setTimeout(() => {
+      const restful = buddy.state === 'idle' || buddy.state === 'speaking';
+      if (restful && buddy.emotion !== 'sleepy') {
+        head.classList.add('blink');
+        setTimeout(() => head.classList.remove('blink'), 120);
+      }
+      loop();
+    }, 3000 + Math.random() * 3000);
+  })();
+}
+
+// --- Sleepy timeout: drift to sleep after inactivity; any activity wakes Buddy. ---
+const SLEEPY_AFTER_MS = 45000;
+let sleepyTimer = null;
+function resetSleepy() {
+  if (buddy.emotion === 'sleepy') buddy.wake();
+  if (sleepyTimer) clearTimeout(sleepyTimer);
+  sleepyTimer = setTimeout(() => {
+    if (buddy.state === 'idle') buddy.toSleepy();
+  }, SLEEPY_AFTER_MS);
+}
+
+function startBehaviours() {
+  startBlink();
+  resetSleepy();
+  ['pointerdown', 'keydown', 'pointermove'].forEach((ev) =>
+    window.addEventListener(ev, resetSleepy, { passive: true })
+  );
+}
+
+// --- Kiosk hardening: screen wake-lock, no context menu/zoom, cursor auto-hide. ---
+function setupKiosk() {
+  if ('wakeLock' in navigator) {
+    let lock = null;
+    const acquire = async () => {
+      try { lock = await navigator.wakeLock.request('screen'); } catch (_) { /* best effort */ }
+    };
+    acquire();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') acquire();
+    });
+  }
+  window.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+
+  let cursorTimer = null;
+  const pokeCursor = () => {
+    document.body.classList.remove('cursor-hidden');
+    if (cursorTimer) clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(() => document.body.classList.add('cursor-hidden'), 3000);
+  };
+  ['pointermove', 'pointerdown', 'keydown'].forEach((ev) =>
+    window.addEventListener(ev, pokeCursor, { passive: true })
+  );
+  pokeCursor();
+}
 
 // --- A simple amplitude oscillator so the mouth moves while "speaking" ---
 function animateSpeaking(durationMs) {
@@ -28,7 +96,7 @@ function animateSpeaking(durationMs) {
         resolve();
         return;
       }
-      // Pseudo-random mouth movement; M4 replaces this with real TTS amplitude.
+      // Pseudo-random mouth movement; voice mode feeds real TTS amplitude instead.
       const amp = 0.35 + 0.35 * Math.abs(Math.sin(t / 90)) * Math.abs(Math.cos(t / 50));
       buddy.setAmplitude(amp);
       requestAnimationFrame(tick);
@@ -78,7 +146,7 @@ async function sendText(text) {
   }
 }
 
-// --- Mock harness: cycle every emotion + oscillate amplitude, no backend ---
+// --- Mock harness: cycle every emotion (incl. sleepy) + oscillate amplitude. ---
 function startMock() {
   document.body.classList.add('kiosk');
   const emotions = window.BuddyFace.EMOTIONS;
@@ -100,6 +168,9 @@ function startMock() {
 if (params.get('mock') === '1') {
   startMock();
 } else {
+  startBehaviours();
+  if (KIOSK) setupKiosk();
+
   const input = document.getElementById('text-input');
   const sendBtn = document.getElementById('send-btn');
   const mockBtn = document.getElementById('mock-btn');
@@ -117,11 +188,17 @@ if (params.get('mock') === '1') {
     location.search = '?mock=1';
   });
 
-  // --- Voice (M4): hold the mic button to talk; release to let Buddy reply. ---
+  // --- Voice: hold the mic button to talk; release to let Buddy reply. ---
   const talkBtn = document.getElementById('talk-btn');
   const voice = window.BuddyWS.connect(buddy, {
     onCaption: (say) => {
       caption.textContent = say;
+    },
+    onStatus: (status) => {
+      if (status === 'reconnecting') {
+        caption.textContent = 'One sec… reconnecting.';
+        buddy.setEmotion('curious');
+      }
     },
   });
   const press = (e) => {
@@ -139,6 +216,15 @@ if (params.get('mock') === '1') {
   talkBtn.addEventListener('pointerup', release);
   talkBtn.addEventListener('pointerleave', release);
   talkBtn.addEventListener('pointercancel', release);
+
+  // Keep a live connection on the always-on kiosk, and recover it when the screen
+  // wakes or the tab returns to the foreground.
+  if (KIOSK) {
+    voice.open();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') voice.open();
+    });
+  }
 }
 
 // Register the PWA service worker (offline kiosk shell).

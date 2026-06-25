@@ -46,4 +46,3 @@ def test_enforce_substitutes_unsafe_reply() -> None:
 def test_enforce_passes_safe_reply_unchanged() -> None:
     good = BuddyReply(emotion=Emotion.happy, say="The sky is blue!", remember=[])
     assert safety.enforce(good).say == "The sky is blue!"
-

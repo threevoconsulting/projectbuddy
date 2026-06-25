@@ -32,6 +32,19 @@ class BuddyState {
     this.render(emotion, this.amplitude);
   }
 
+  // Drift off to sleep after a stretch of no interaction (M6). The inactivity timer
+  // that calls this lives in app.js; wake() is called on any child activity.
+  toSleepy() {
+    this.state = 'idle';
+    this.emotion = 'sleepy';
+    this.render('sleepy', 0);
+  }
+
+  wake() {
+    if (this.emotion === 'sleepy') this.emotion = 'happy';
+    this.toIdle();
+  }
+
   setEmotion(emotion) {
     this.emotion = emotion;
     if (this.state === 'idle' || this.state === 'speaking') {

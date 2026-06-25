@@ -33,12 +33,17 @@ def test_turn_frame_order_face_leads_voice(client: TestClient) -> None:
         frames = _say(ws, "I love dinosaurs!")
         types = [f["type"] for f in frames]
 
-        # thinking → emotion → audio(s) → final
+        # thinking → emotion → speaking → audio(s) → final
         assert types[0] == "state" and frames[0]["value"] == "thinking"
         assert "emotion" in types and "audio" in types and types[-1] == "final"
 
-        # The face leads the voice: emotion precedes the first audio chunk.
-        assert types.index("emotion") < types.index("audio")
+        # The face leads the voice: emotion precedes the `speaking` state, which in
+        # turn precedes the first audio chunk.
+        speaking = [
+            i for i, f in enumerate(frames) if f["type"] == "state" and f["value"] == "speaking"
+        ]
+        assert speaking, "expected a speaking state frame"
+        assert types.index("emotion") < speaking[0] < types.index("audio")
 
         # The transcript round-trips and the spoken line is non-empty.
         final = frames[-1]

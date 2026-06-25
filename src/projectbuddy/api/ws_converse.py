@@ -82,9 +82,7 @@ async def _handle_utterance(
 
     resolved = resolve_session(c, session_id)
     if resolved is None:
-        await ws.send_json(
-            FinalFrame(transcript="", say="Let's start a new chat!").model_dump()
-        )
+        await ws.send_json(FinalFrame(transcript="", say="Let's start a new chat!").model_dump())
         return None  # drop the stale id; the next utterance starts fresh
     person, session = resolved
 
