@@ -59,7 +59,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         container = Container.build(settings)
         app.state.container = container
-        await container.llm.warmup()  # pre-warm to protect first-token latency
+        # Pre-warm every model so the FIRST turn isn't a cold load (LLM resident, STT
+        # graph compiled, Kokoro/Piper voice loaded). All best-effort.
+        await container.llm.warmup()
+        with contextlib.suppress(Exception):
+            await container.stt.transcribe(b"\x00\x00" * 1600)  # ~0.1s of silence
+        with contextlib.suppress(Exception):
+            async for _ in container.tts.synthesize("Hello"):
+                pass
         # Enforce retention immediately, then on a timer.
         sweep_face_retention(container.consents, container.face_embeddings)
         retention_task = asyncio.create_task(_retention_loop(container))
