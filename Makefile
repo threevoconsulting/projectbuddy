@@ -30,7 +30,7 @@ run:
 # Ollama running, and Piper/Whisper assets (see scripts/pull_models.sh and
 # docs/running-on-mac.md). Enables the real recognizer too (PB_RECOGNITION_BACKEND).
 run-mac:
-	PB_LLM_BACKEND=ollama PB_STT_BACKEND=faster_whisper PB_TTS_BACKEND=piper \
+	PB_LLM_BACKEND=ollama PB_STT_BACKEND=faster_whisper PB_TTS_BACKEND=kokoro \
 	PB_RECOGNITION_BACKEND=insightface \
 		uv run uvicorn projectbuddy.app:create_app --factory --host $${PB_HOST:-0.0.0.0} --port $${PB_PORT:-8765}
 

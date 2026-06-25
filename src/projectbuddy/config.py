@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     # Ollama (used only when llm_backend == "ollama")
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3:8b"
-    llm_num_ctx: int = 4096
+    llm_num_ctx: int = 2048  # smaller window = faster prompt processing; replies are tiny
+    llm_num_predict: int = 128  # cap generation — Buddy says 1-3 short sentences
+    llm_keep_alive: str = "30m"  # keep the model resident between turns (no reload latency)
 
     # faster-whisper STT (used only when stt_backend == "faster_whisper")
     whisper_model: str = "base"  # tiny | base | small (latency/accuracy trade-off)
@@ -75,7 +77,7 @@ class Settings(BaseSettings):
     db_path: str = "buddy.db"
 
     # Memory tuning
-    short_term_turns: int = 12  # recent turns kept verbatim in context
+    short_term_turns: int = 8  # recent turns kept verbatim in context (smaller = faster)
 
     # Retention sweep cadence (M8): how often to delete face data past its
     # consent.retention_until. Default 6 hours; also runs at startup and on demand.

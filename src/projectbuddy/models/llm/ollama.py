@@ -19,12 +19,16 @@ class OllamaLLMClient:
         *,
         url: str,
         model: str,
-        num_ctx: int = 4096,
+        num_ctx: int = 2048,
+        num_predict: int = 128,
+        keep_alive: str = "30m",
         timeout: float = 30.0,
     ) -> None:
         self._url = url.rstrip("/")
         self._model = model
         self._num_ctx = num_ctx
+        self._num_predict = num_predict
+        self._keep_alive = keep_alive
         self._client = httpx.AsyncClient(base_url=self._url, timeout=timeout)
 
     async def chat(self, messages: list[ChatMessage], *, json: bool = True) -> str:
@@ -32,7 +36,9 @@ class OllamaLLMClient:
             "model": self._model,
             "messages": messages,
             "stream": False,
-            "options": {"num_ctx": self._num_ctx},
+            # keep_alive keeps the model resident; num_predict caps the (short) reply.
+            "keep_alive": self._keep_alive,
+            "options": {"num_ctx": self._num_ctx, "num_predict": self._num_predict},
         }
         if json:
             payload["format"] = "json"

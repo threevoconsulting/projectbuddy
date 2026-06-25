@@ -111,12 +111,26 @@ function animateSpeaking(durationMs) {
   });
 }
 
-// Optional: voice the line with the browser's built-in TTS (placeholder for Piper).
+// Voice the line with the browser's built-in TTS — only used in the text-only path
+// (the real voice loop streams Piper/Kokoro audio). Tuned calmer and warmer than the
+// default, and prefers a natural-sounding system voice when one is available.
+function pickWarmVoice() {
+  const voices = speechSynthesis.getVoices?.() || [];
+  const want = ['Samantha', 'Karen', 'Moira', 'Google US English', 'Jenny', 'Aria'];
+  for (const name of want) {
+    const v = voices.find((x) => x.name.includes(name));
+    if (v) return v;
+  }
+  return voices.find((x) => x.lang && x.lang.startsWith('en')) || null;
+}
+
 function speakAloud(text) {
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.0;
-    u.pitch = 1.2;
+    u.rate = 0.95; // a touch slower — easier for a young child to follow
+    u.pitch = 1.05; // gentle, not chipmunky
+    const v = pickWarmVoice();
+    if (v) u.voice = v;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
   } catch (_) {

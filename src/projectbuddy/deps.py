@@ -37,6 +37,8 @@ def _build_llm(settings: Settings) -> LLMClient:
             url=settings.ollama_url,
             model=settings.ollama_model,
             num_ctx=settings.llm_num_ctx,
+            num_predict=settings.llm_num_predict,
+            keep_alive=settings.llm_keep_alive,
         )
     from projectbuddy.models.llm.fake import FakeLLMClient
 

@@ -5,11 +5,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Kokoro is the default voice — warm and natural (kinder for kids than Piper's more
+# synthetic tone). Set PB_TTS_BACKEND=piper for the faster, lighter voice.
 export PB_LLM_BACKEND="${PB_LLM_BACKEND:-ollama}"
 export PB_STT_BACKEND="${PB_STT_BACKEND:-faster_whisper}"
-export PB_TTS_BACKEND="${PB_TTS_BACKEND:-piper}"
+export PB_TTS_BACKEND="${PB_TTS_BACKEND:-kokoro}"
 export PB_RECOGNITION_BACKEND="${PB_RECOGNITION_BACKEND:-insightface}"
-export PB_PIPER_VOICE_PATH="${PB_PIPER_VOICE_PATH:-}"
+export PB_PIPER_VOICE_PATH="${PB_PIPER_VOICE_PATH:-./models/piper/en_US-amy-medium.onnx}"
 PB_HOST="${PB_HOST:-0.0.0.0}"
 PB_PORT="${PB_PORT:-8765}"
 

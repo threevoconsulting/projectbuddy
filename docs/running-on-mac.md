@@ -31,14 +31,24 @@ latency and memory.
 ## 3. Run
 
 ```bash
-export PB_PIPER_VOICE_PATH=./models/piper/en_US-lessac-high.onnx   # from pull_models.sh
-./scripts/run_mac.sh       # PB_LLM_BACKEND=ollama, STT=faster_whisper, TTS=piper
+./scripts/run_mac.sh       # LLM=ollama, STT=faster_whisper, TTS=kokoro, recognition=insightface
 ```
 
-**Buddy's voice** is `en_US-lessac-high` by default (clear and friendly); `en_US-amy-medium`
-is a warmer alternative. For a more lifelike voice, set `PB_TTS_BACKEND=kokoro`. Compare
-candidates side by side with `uv run python scripts/compare_voices.py` — it writes a WAV
-per voice to `./voice-samples/` so you can listen and pick.
+**Buddy's voice** defaults to **Kokoro** (`af_heart`) — a warm, natural neural voice that's
+kinder for young children than Piper's more synthetic tone. For a faster, lighter voice set
+`PB_TTS_BACKEND=piper` (defaults to the warmer `en_US-amy-medium`; `en_US-lessac-high` is the
+crisper alternative). Compare them with `uv run python scripts/compare_voices.py` — it writes a
+WAV per voice to `./voice-samples/` so you can listen and pick. Pick a different Kokoro voice
+with `PB_KOKORO_VOICE` (see the Kokoro voice list).
+
+### Tuning response speed
+Latency is dominated by the LLM. Levers (all env vars):
+- `PB_OLLAMA_MODEL` — a smaller model replies faster: `llama3.2:3b` / `gemma3:4b` (8 GB),
+  `qwen3:8b` (default, 16 GB).
+- `PB_LLM_NUM_PREDICT=128` caps reply length, `PB_LLM_NUM_CTX=2048` shrinks the context, and
+  `PB_LLM_KEEP_ALIVE=30m` keeps the model resident between turns — all on by default now.
+- `PB_WHISPER_MODEL=tiny` speeds up speech-to-text (vs `base`). `make run-mac` pre-warms the
+  LLM at startup so the first turn isn't cold.
 
 Open the face full-screen at <http://localhost:8765/app/> and **hold the 🎤 button to
 talk** (push-to-talk); release and Buddy replies, expression first, then voice. The
