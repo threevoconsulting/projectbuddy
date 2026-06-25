@@ -39,7 +39,7 @@ class KokoroTTSEngine:
 def _resample(samples: object, src_rate: int, dst_rate: int, np: object) -> object:
     """Linear resample a 1-D float array — light, dependency-free, fine for speech."""
     n_src = samples.shape[0]  # type: ignore[attr-defined]
-    n_dst = int(round(n_src * dst_rate / src_rate))
+    n_dst = round(n_src * dst_rate / src_rate)
     if n_dst <= 0:
         return np.zeros(0, dtype="float32")  # type: ignore[attr-defined]
     src_idx = np.arange(n_src, dtype="float32")  # type: ignore[attr-defined]

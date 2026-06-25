@@ -19,9 +19,7 @@ class InsightFaceRecognizer(FaceRecognizer):
         # Lazy import: keeps CI/import safe without the perception extra installed.
         from insightface.app import FaceAnalysis
 
-        providers = (
-            ["CUDAExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
-        )
+        providers = ["CUDAExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
         self._app = FaceAnalysis(name=model, providers=providers)
         self._app.prepare(ctx_id=0 if device == "cuda" else -1, det_size=(640, 640))
 

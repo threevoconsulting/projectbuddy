@@ -12,9 +12,7 @@ _DEFAULT = "Tell me a story about space."
 
 
 class FakeSTTEngine:
-    def __init__(
-        self, *, transcript: str | None = None, scripted: list[str] | None = None
-    ) -> None:
+    def __init__(self, *, transcript: str | None = None, scripted: list[str] | None = None) -> None:
         self._transcript = transcript
         self._scripted = list(scripted or [])
         self.calls: list[bytes] = []

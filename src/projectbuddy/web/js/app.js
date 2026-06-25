@@ -165,16 +165,75 @@ function startMock() {
   })();
 }
 
-// --- Camera test (M7, ?camtest=1): a dev affordance to exercise /recognize and the
-//     camera-active indicator. Grabs a frame every couple of seconds and asks the
-//     backend who it sees. The full enrollment/parent capture UI lands in M9. ---
+// --- Camera test (M7, ?camtest=1): a dev affordance to exercise the whole face flow.
+//     Grabs a frame periodically and asks the backend who it sees, and offers an
+//     "Enroll my face" button that runs create-person → consent → enroll on the
+//     current frame so recognition has someone to match. The full parent capture UI
+//     lands in M9. ---
 async function startCamtest() {
   document.body.classList.add('kiosk');
-  caption.textContent = 'Camera test — point at a face.';
+  caption.textContent = 'Camera test — point at a face, then "Enroll my face".';
   const video = document.createElement('video');
   video.autoplay = true;
   video.playsInline = true;
   const canvas = document.createElement('canvas');
+
+  let busy = false; // pause the recognize loop during enrollment
+
+  const grabFrame = () => {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return null;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg').split(',')[1];
+  };
+
+  const postJSON = (url, body) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  // An on-screen enroll button (created here so no HTML change is needed).
+  const enrollBtn = document.createElement('button');
+  enrollBtn.textContent = '📸 Enroll my face';
+  enrollBtn.style.cssText =
+    'position:absolute;bottom:24px;left:50%;transform:translateX(-50%);' +
+    'border:none;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;' +
+    'color:#fff;background:#22c55e;cursor:pointer;z-index:10;';
+  enrollBtn.addEventListener('click', async () => {
+    const image = grabFrame();
+    if (!image) return;
+    const name = prompt("Whose face is this?", 'Me');
+    if (!name) return;
+    busy = true;
+    enrollBtn.disabled = true;
+    caption.textContent = `Enrolling ${name}…`;
+    try {
+      const person = await postJSON('/person', { display_name: name, role: 'child' }).then((r) =>
+        r.json()
+      );
+      await postJSON(`/person/${person.id}/consent`, { scope: 'face', granted: true });
+      const res = await postJSON(`/person/${person.id}/enroll`, { images: [image] });
+      if (res.status === 400) {
+        caption.textContent = 'I couldn’t find a face in that frame — try again, well-lit and centered.';
+      } else if (!res.ok) {
+        caption.textContent = `Enroll failed (HTTP ${res.status}).`;
+      } else {
+        caption.textContent = `Enrolled ${name}! Now point the camera back at your face.`;
+      }
+    } catch (_) {
+      caption.textContent = 'Enroll failed — is the backend running?';
+    } finally {
+      enrollBtn.disabled = false;
+      busy = false;
+    }
+  });
+  document.getElementById('stage').appendChild(enrollBtn);
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     window.BuddyCamera.show();
@@ -184,28 +243,20 @@ async function startCamtest() {
     caption.textContent = 'No camera available for the test.';
     return;
   }
+
   setInterval(async () => {
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (!w || !h) return;
-    canvas.width = w;
-    canvas.height = h;
-    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-    const image = canvas.toDataURL('image/jpeg').split(',')[1];
+    if (busy) return;
+    const image = grabFrame();
+    if (!image) return;
     try {
-      const resp = await fetch('/recognize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image }),
-      });
-      const r = await resp.json();
+      const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
       caption.textContent = r.matched
-        ? `I see person #${r.person_id} (${r.confidence.toFixed(2)})`
+        ? `I see ${r.person_id ? 'person #' + r.person_id : 'someone'} (${r.confidence.toFixed(2)})`
         : "I don't recognize anyone yet.";
     } catch (_) {
       /* keep trying on the next tick */
     }
-  }, 2000);
+  }, 2500);
 }
 
 if (params.get('mock') === '1') {

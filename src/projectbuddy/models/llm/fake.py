@@ -27,7 +27,9 @@ def _heuristic_reply(user_text: str) -> str:
         emotion = Emotion.excited
         say = "Dinosaurs are amazing! The stegosaurus had cool plates on its back."
         remember = [{"key": "likes_dinosaurs", "value": "true"}]
-    elif any(w in text for w in ("i won", "i did it", "i finished", "finished it", "got it", "i made it")):
+    elif any(
+        w in text for w in ("i won", "i did it", "i finished", "finished it", "got it", "i made it")
+    ):
         emotion = Emotion.celebrating
         say = "Hooray! You did it! I'm SO proud of you. Want to try another?"
     elif any(w in text for w in ("story", "tell me a story", "once upon")):
@@ -39,7 +41,10 @@ def _heuristic_reply(user_text: str) -> str:
     elif any(w in text for w in ("game", "let's play", "lets play", "play a", "i spy", "riddle")):
         emotion = Emotion.curious
         say = "Yes, let's play! I spy with my little eye something blue. Can you guess?"
-    elif any(w in text for w in ("how do", "how does", "why do", "why does", "what is", "teach me", "learn")):
+    elif any(
+        w in text
+        for w in ("how do", "how does", "why do", "why does", "what is", "teach me", "learn")
+    ):
         emotion = Emotion.thinking
         say = "Great thing to wonder about! What do you think? Then I'll tell you a fun fact."
     elif any(w in text for w in ("sad", "scared", "cry")):
