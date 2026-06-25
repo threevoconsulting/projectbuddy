@@ -51,10 +51,15 @@ async function welcome() {
     <h1>Welcome</h1>
     <p class="muted">Pick a child to see what Buddy remembers, or add a new one.</p>
     <div class="list">${cards || '<div class="empty">No children yet.</div>'}</div>
-    <h2>Add a child</h2>
+    <h2>Add a person</h2>
     <div class="card">
       <div class="field"><label>Name</label><input id="w-name" placeholder="e.g. Emma" /></div>
-      <div class="field"><label>Role</label><input id="w-role" value="child" /></div>
+      <div class="field"><label>Who is this?</label>
+        <select id="w-role">
+          <option value="child">Child</option>
+          <option value="parent">Parent / grown-up</option>
+        </select>
+      </div>
       <div class="actions"><button class="primary" id="w-add">Add child</button></div>
     </div>`;
   screen.querySelectorAll('[data-pick]').forEach((r) =>
@@ -67,7 +72,7 @@ async function welcome() {
   screen.querySelector('#w-add').addEventListener('click', async () => {
     const name = screen.querySelector('#w-name').value.trim();
     if (!name) return;
-    const p = await API.createPerson(name, screen.querySelector('#w-role').value.trim() || null);
+    const p = await API.createPerson(name, screen.querySelector('#w-role').value);
     await loadPeople();
     currentId = p.id;
     select.value = String(currentId);
@@ -88,6 +93,9 @@ async function dashboard() {
     </div>
     <h2>Status</h2>
     <div class="list">
+      <div class="row"><span>Role</span><span class="sub">${esc(
+        (people.find((x) => x.id === currentId) || {}).role || 'child'
+      )}</span></div>
       <div class="row"><span>Last seen</span><span class="sub">${fmt(s.last_seen_at)}</span></div>
       <div class="row"><span>First met</span><span class="sub">${fmt(s.created_at)}</span></div>
       <div class="row"><span>Face enrolled</span>${pill(s.face_enrolled)}</div>
@@ -162,11 +170,17 @@ async function profile() {
   const consents = await API.consent(currentId).catch(() => []);
   const face = consents.find((c) => c.scope === 'face');
   const granted = !!(face && face.granted);
+  const role = (p && p.role) || 'child';
   screen.innerHTML = `
     <h1>Profile</h1>
     <div class="card">
       <div class="field"><label>Name</label><input id="p-name" value="${esc(p ? p.display_name : '')}" /></div>
-      <div class="field"><label>Role</label><input id="p-role" value="${esc(p ? p.role || '' : '')}" /></div>
+      <div class="field"><label>Who is this?</label>
+        <select id="p-role">
+          <option value="child"${role === 'child' ? ' selected' : ''}>Child</option>
+          <option value="parent"${role === 'parent' ? ' selected' : ''}>Parent / grown-up</option>
+        </select>
+      </div>
       <div class="actions"><button class="primary" id="p-save">Save</button></div>
     </div>
     <h2>Face recognition consent</h2>

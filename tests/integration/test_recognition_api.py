@@ -120,6 +120,14 @@ def test_recognize_returns_display_name(client: TestClient) -> None:
     assert rec["matched"] and rec["display_name"] == "Ada"
 
 
+def test_recognize_returns_role(client: TestClient) -> None:
+    pid = int(client.post("/person", json={"display_name": "Mum", "role": "parent"}).json()["id"])
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})
+    client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"mum-face")]})
+    rec = client.post("/recognize", json={"image": _b64(b"mum-face")}).json()
+    assert rec["matched"] and rec["role"] == "parent"
+
+
 class _RejectAllLiveness:
     """Stand-in anti-spoof that flags everything as a spoof."""
 

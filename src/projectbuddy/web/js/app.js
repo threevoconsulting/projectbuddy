@@ -266,6 +266,9 @@ function addEnrollButton(grabFrame) {
     }
     const name = prompt("I don't know you yet — what's your name?", '');
     if (!name) return;
+    const role = confirm(`Is ${name} a grown-up?\n\nOK = parent · Cancel = child`)
+      ? 'parent'
+      : 'child';
     enrolling = true;
     btn.disabled = true;
     caption.textContent = `Capturing ${name}…`;
@@ -281,7 +284,7 @@ function addEnrollButton(grabFrame) {
         return;
       }
       caption.textContent = `Enrolling ${name}…`;
-      const person = await postJSON('/person', { display_name: name, role: 'child' }).then((r) =>
+      const person = await postJSON('/person', { display_name: name, role }).then((r) =>
         r.json()
       );
       await postJSON(`/person/${person.id}/consent`, { scope: 'face', granted: true });

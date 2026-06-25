@@ -91,6 +91,7 @@ async def run_greeting(
         person_id=person.id,
         session_id=session.id,
         display_name=display_name or person.display_name,
+        role=person.role,
     )
     raw = await c.llm.chat(messages, json=True)
     reply = await parse_reply(raw, messages, c.llm)

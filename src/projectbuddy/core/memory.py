@@ -81,19 +81,32 @@ class MemoryManager:
         return messages
 
     def build_greeting_context(
-        self, *, person_id: int, session_id: int, display_name: str | None
+        self,
+        *,
+        person_id: int,
+        session_id: int,
+        display_name: str | None,
+        role: str | None = None,
     ) -> list[ChatMessage]:
         """Assemble the LLM messages for an arrival greeting (M8 continuity).
 
-        Reuses the same system + memory + recent-turns context, then asks Buddy to
-        greet the recognized child warmly by name — drawing on what it remembers.
+        Reuses the same system + memory + recent-turns context, then asks Buddy to greet
+        the recognized person warmly by name. A ``parent`` is greeted as a friendly
+        grown-up; anyone else as the child friend Buddy normally is.
         """
         name = display_name or "your friend"
-        instruction = (
-            f"[{name} just walked up and is looking at you.] Greet them warmly by name "
-            "in one short, happy sentence. If you remember something they like, mention "
-            "it kindly. Do not ask them to repeat anything."
-        )
+        if role == "parent":
+            instruction = (
+                f"[{name}, a grown-up (a parent), just came by and is looking at you.] "
+                "Greet them warmly and politely by name in one short sentence, the way a "
+                "kind kids' helper would greet a parent. Do not ask them to repeat anything."
+            )
+        else:
+            instruction = (
+                f"[{name} just walked up and is looking at you.] Greet them warmly by name "
+                "in one short, happy sentence. If you remember something they like, mention "
+                "it kindly. Do not ask them to repeat anything."
+            )
         return self.build_context(
             person_id=person_id, session_id=session_id, child_text=instruction
         )

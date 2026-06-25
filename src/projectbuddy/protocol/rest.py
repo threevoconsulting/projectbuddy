@@ -137,6 +137,7 @@ class RecognizeResponse(BaseModel):
     matched: bool
     person_id: int | None = None
     display_name: str | None = None
+    role: str | None = None  # "child" | "parent" — lets the UI/greeting adapt
     confidence: float
     face_present: bool = False  # a face was detected (matched or not) vs an empty frame
 

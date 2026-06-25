@@ -131,13 +131,17 @@ async def recognize_face(
     enrolled = [(row.person_id, row.vector) for row in c.face_embeddings.list_all()]
     person_id, score = best_match(probe, enrolled, c.settings.recognition_match_threshold)
     display_name = None
+    role = None
     if person_id is not None:
         person = c.persons.get(person_id)
-        display_name = person.display_name if person else None
+        if person is not None:
+            display_name = person.display_name
+            role = person.role
     return RecognizeResponse(
         matched=person_id is not None,
         person_id=person_id,
         display_name=display_name,
+        role=role,
         confidence=score,
         face_present=True,  # a face is here, even if we don't know whose
     )
