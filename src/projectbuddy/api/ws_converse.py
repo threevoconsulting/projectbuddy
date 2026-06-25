@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -30,6 +31,9 @@ from projectbuddy.protocol.ws import (
 )
 
 router = APIRouter()
+
+# Logs to uvicorn's configured logger so voice diagnostics show in the run-mac terminal.
+_log = logging.getLogger("uvicorn.error")
 
 _DIDNT_CATCH = "Hmm, I didn't catch that. Can you say it again?"
 
@@ -90,8 +94,11 @@ async def _handle_utterance(
     ws: WebSocket, c: Container, session_id: int | None, audio: bytes
 ) -> int | None:
     """Transcribe + run one turn. Returns the session id to keep using."""
+    # ~16 kHz mono 16-bit PCM → seconds = bytes / 2 / 16000.
+    secs = len(audio) / 2 / 16000
     # A stray tap with no audio shouldn't create a session — answer gently and wait.
     if not audio:
+        _log.info("voice: empty utterance (no audio captured)")
         await _didnt_catch(ws)
         return session_id
 
@@ -103,11 +110,17 @@ async def _handle_utterance(
 
     transcript = (await c.stt.transcribe(audio)).strip()
     if not transcript:
+        _log.info("voice: %.1fs audio -> STT heard nothing", secs)
         await _didnt_catch(ws)
         return session.id
+    _log.info("voice: %.1fs audio -> heard: %r", secs, transcript)
 
+    say = ""
     async for frame in run_turn(c, person=person, session=session, transcript=transcript):
+        if isinstance(frame, FinalFrame):
+            say = frame.say
         await ws.send_json(frame.model_dump())
+    _log.info("voice: Buddy replied: %r", say)
     return session.id
 
 

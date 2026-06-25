@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -26,6 +27,16 @@ from projectbuddy.protocol.rest import HealthResponse
 
 _WEB_DIR = Path(__file__).parent / "web"
 _PARENT_DIR = Path(__file__).parent / "parent"
+
+
+class _SkipRecognizeAccessLog(logging.Filter):
+    """Drop the high-frequency /recognize polling lines so real logs stay readable."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/recognize" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_SkipRecognizeAccessLog())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
