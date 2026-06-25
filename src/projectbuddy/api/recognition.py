@@ -111,7 +111,8 @@ async def enroll_face(
     # means the recognizer discriminates identity (good); ~0 means it does not.
     for i in range(len(vectors)):
         for j in range(i + 1, len(vectors)):
-            _log.info("enroll cross-frame cosine[%d,%d] = %.4f", i, j, cosine(vectors[i], vectors[j]))
+            sim = cosine(vectors[i], vectors[j])
+            _log.info("enroll cross-frame cosine[%d,%d] = %.4f", i, j, sim)
     _log.info("enroll person=%s faces=%d/%d", person_id, len(vectors), len(body.images))
     if not vectors:
         raise HTTPException(status_code=400, detail="no face detected")
