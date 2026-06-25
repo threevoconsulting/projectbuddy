@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -30,6 +31,9 @@ from projectbuddy.protocol.rest import (
 )
 
 router = APIRouter()
+
+# Logs to uvicorn's configured logger so diagnostics show in the run-mac terminal.
+_log = logging.getLogger("uvicorn.error")
 
 _FACE = "face"
 
@@ -102,10 +106,13 @@ async def enroll_face(
         vector = await c.recognition.embed(_decode(image_b64))
         if vector is not None:
             vectors.append(vector)
+    _log.info("enroll person=%s faces=%d/%d", person_id, len(vectors), len(body.images))
     if not vectors:
         raise HTTPException(status_code=400, detail="no face detected")
 
     averaged = average_vectors(vectors)
+    norm = sum(x * x for x in averaged) ** 0.5
+    _log.info("enroll person=%s dim=%d norm=%.3f", person_id, len(averaged), norm)
     row = c.face_embeddings.upsert(person_id, averaged, frames=len(vectors))
     return EnrollResponse(person_id=person_id, frames=row.frames, vector_size=len(averaged))
 
@@ -116,7 +123,15 @@ async def recognize_face(
 ) -> RecognizeResponse:
     probe = await c.recognition.embed(_decode(body.image))
     if probe is None:
+        _log.info("recognize: no face detected in probe frame")
         return RecognizeResponse(matched=False, person_id=None, confidence=0.0)
     enrolled = [(row.person_id, row.vector) for row in c.face_embeddings.list_all()]
     person_id, score = best_match(probe, enrolled, c.settings.recognition_match_threshold)
+    _log.info(
+        "recognize: enrolled=%d best_id=%s score=%.3f thr=%.2f",
+        len(enrolled),
+        person_id,
+        score,
+        c.settings.recognition_match_threshold,
+    )
     return RecognizeResponse(matched=person_id is not None, person_id=person_id, confidence=score)

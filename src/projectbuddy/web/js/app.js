@@ -252,7 +252,7 @@ async function startCamtest() {
       const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
       caption.textContent = r.matched
         ? `I see ${r.person_id ? 'person #' + r.person_id : 'someone'} (${r.confidence.toFixed(2)})`
-        : "I don't recognize anyone yet.";
+        : `No match yet (best ${r.confidence.toFixed(2)})`;
     } catch (_) {
       /* keep trying on the next tick */
     }
