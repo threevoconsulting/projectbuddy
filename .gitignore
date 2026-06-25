@@ -16,8 +16,9 @@ buddy.db*
 # Env / secrets
 .env
 
-# Models (downloaded on the Mac, never committed)
-models/
+# Downloaded model weights (fetched on the Mac, never committed). Anchored to the
+# repo root so it does NOT match the source package src/projectbuddy/models/.
+/models/
 *.onnx
 *.gguf
 
