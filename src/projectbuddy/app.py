@@ -25,6 +25,7 @@ from projectbuddy.deps import Container
 from projectbuddy.protocol.rest import HealthResponse
 
 _WEB_DIR = Path(__file__).parent / "web"
+_PARENT_DIR = Path(__file__).parent / "parent"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -71,5 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # The face (vanilla web UI / PWA). Same artifact runs in a Pi Chromium kiosk.
     app.mount("/app", StaticFiles(directory=_WEB_DIR, html=True), name="web")
+    # The parent companion app (M9): transparency + control surface, vanilla SPA.
+    app.mount("/parent", StaticFiles(directory=_PARENT_DIR, html=True), name="parent")
 
     return app

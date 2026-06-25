@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Buddy — Parents</title>
+    <link rel="manifest" href="/parent/manifest.webmanifest" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap"
+    />
+    <link rel="stylesheet" href="/parent/css/parent.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="dot"></span> Buddy <span class="muted">· Parents</span></div>
+      <label class="person-pick">
+        <span class="muted">Child</span>
+        <select id="person-select"></select>
+      </label>
+    </header>
+
+    <nav id="tabs" class="tabs" hidden>
+      <a data-route="dashboard" href="#/dashboard">Dashboard</a>
+      <a data-route="sessions" href="#/sessions">Sessions</a>
+      <a data-route="memory" href="#/memory">Memory</a>
+      <a data-route="profile" href="#/profile">Profile</a>
+    </nav>
+
+    <main id="screen" class="screen"></main>
+
+    <script src="/parent/js/api.js"></script>
+    <script src="/parent/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "Buddy — Parents",
+  "short_name": "Buddy Parents",
+  "start_url": "/parent/",
+  "scope": "/parent/",
+  "display": "standalone",
+  "background_color": "#060e18",
+  "theme_color": "#060e18",
+  "icons": [{ "src": "/app/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
