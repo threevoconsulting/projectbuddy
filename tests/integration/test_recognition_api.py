@@ -112,3 +112,27 @@ def test_recognize_returns_display_name(client: TestClient) -> None:
     client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"ada-face")]})
     rec = client.post("/recognize", json={"image": _b64(b"ada-face")}).json()
     assert rec["matched"] and rec["display_name"] == "Ada"
+
+
+class _RejectAllLiveness:
+    """Stand-in anti-spoof that flags everything as a spoof."""
+
+    async def check(self, image: bytes) -> bool:
+        return False
+
+
+def test_liveness_failure_blocks_enroll(client: TestClient) -> None:
+    pid = _make_person(client)
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})
+    client.app.state.container.liveness = _RejectAllLiveness()
+    r = client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"a-photo")]})
+    assert r.status_code == 400 and r.json()["detail"] == "liveness check failed"
+
+
+def test_liveness_failure_blocks_recognize(client: TestClient) -> None:
+    pid = _make_person(client)
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})
+    client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"emma-face")]})
+    client.app.state.container.liveness = _RejectAllLiveness()
+    rec = client.post("/recognize", json={"image": _b64(b"emma-face")}).json()
+    assert rec["matched"] is False

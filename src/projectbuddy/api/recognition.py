@@ -104,7 +104,10 @@ async def enroll_face(
 
     vectors: list[list[float]] = []
     for image_b64 in body.images:
-        vector = await c.recognition.embed(_decode(image_b64))
+        image = _decode(image_b64)
+        if not await c.liveness.check(image):  # anti-spoof gate (no-op on the fake backend)
+            raise HTTPException(status_code=400, detail="liveness check failed")
+        vector = await c.recognition.embed(image)
         if vector is not None:
             vectors.append(vector)
     if not vectors:
@@ -119,7 +122,10 @@ async def enroll_face(
 async def recognize_face(
     body: RecognizeRequest, c: Container = Depends(get_container)
 ) -> RecognizeResponse:
-    probe = await c.recognition.embed(_decode(body.image))
+    image = _decode(body.image)
+    if not await c.liveness.check(image):  # spoof/empty → no match
+        return RecognizeResponse(matched=False, person_id=None, confidence=0.0)
+    probe = await c.recognition.embed(image)
     if probe is None:
         return RecognizeResponse(matched=False, person_id=None, confidence=0.0)
     enrolled = [(row.person_id, row.vector) for row in c.face_embeddings.list_all()]

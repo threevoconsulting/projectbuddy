@@ -22,6 +22,7 @@ from projectbuddy.db.repositories import (
     PersonRepo,
     SessionRepo,
 )
+from projectbuddy.models.liveness.base import LivenessDetector
 from projectbuddy.models.llm.base import LLMClient
 from projectbuddy.models.recognition.base import FaceRecognizer
 from projectbuddy.models.stt.base import STTEngine
@@ -90,6 +91,20 @@ def _build_recognition(settings: Settings) -> FaceRecognizer:
     return FakeRecognizer()
 
 
+def _build_liveness(settings: Settings) -> LivenessDetector:
+    if settings.liveness_backend == "minifasnet":
+        from projectbuddy.models.liveness.minifasnet import MiniFasnetLivenessDetector
+
+        return MiniFasnetLivenessDetector(
+            model=settings.liveness_model,
+            device=settings.liveness_device,
+            threshold=settings.liveness_threshold,
+        )
+    from projectbuddy.models.liveness.fake import FakeLivenessDetector
+
+    return FakeLivenessDetector()
+
+
 @dataclass
 class Container:
     settings: Settings
@@ -103,6 +118,7 @@ class Container:
     stt: STTEngine
     tts: TTSEngine
     recognition: FaceRecognizer
+    liveness: LivenessDetector
     face_embeddings: FaceEmbeddingRepo
     consents: ConsentRepo
 
@@ -129,6 +145,7 @@ class Container:
             stt=_build_stt(settings),
             tts=_build_tts(settings),
             recognition=_build_recognition(settings),
+            liveness=_build_liveness(settings),
             face_embeddings=FaceEmbeddingRepo(db),
             consents=ConsentRepo(db),
         )

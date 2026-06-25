@@ -15,6 +15,7 @@ LLMBackend = Literal["fake", "ollama"]
 STTBackend = Literal["fake", "faster_whisper"]
 TTSBackend = Literal["fake", "piper", "kokoro"]
 RecognitionBackend = Literal["fake", "insightface"]
+LivenessBackend = Literal["fake", "minifasnet"]
 
 
 class Settings(BaseSettings):
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     stt_backend: STTBackend = "fake"
     tts_backend: TTSBackend = "fake"
     recognition_backend: RecognitionBackend = "fake"
+    liveness_backend: LivenessBackend = "fake"
 
     # Ollama (used only when llm_backend == "ollama")
     ollama_url: str = "http://localhost:11434"
@@ -61,6 +63,13 @@ class Settings(BaseSettings):
     # typically 0.5-0.7 and different-person 0.0-0.3, so 0.45 separates them well;
     # raise it if siblings get confused, lower it if a known face isn't recognized.
     recognition_match_threshold: float = 0.45
+
+    # Liveness / anti-spoof (used only when liveness_backend == "minifasnet"). The fake
+    # backend is permissive (any real frame passes); the real adapter loads a MiniFASNet
+    # ONNX model from liveness_model and rejects spoofs below liveness_threshold.
+    liveness_model: str = ""  # path to a MiniFASNet .onnx; required for the real backend
+    liveness_device: str = "cpu"
+    liveness_threshold: float = 0.5
 
     # Data
     db_path: str = "buddy.db"
