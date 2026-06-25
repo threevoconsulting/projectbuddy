@@ -100,6 +100,14 @@ class PersonRepo:
             "UPDATE person SET last_seen_at = datetime('now') WHERE id = ?", (person_id,)
         )
 
+    def update(self, person_id: int, display_name: str, role: str | None) -> Person | None:
+        """Edit a person's display name / role (parent app)."""
+        self._db.execute(
+            "UPDATE person SET display_name = ?, role = ? WHERE id = ?",
+            (display_name, role, person_id),
+        )
+        return self.get(person_id)
+
     def delete(self, person_id: int) -> bool:
         """Forget a person: cascades to their facts, sessions, and messages."""
         cur = self._db.execute("DELETE FROM person WHERE id = ?", (person_id,))
@@ -166,6 +174,20 @@ class SessionRepo:
             (summary, session_id),
         )
 
+    def list_by_person(self, person_id: int) -> list[SessionRow]:
+        """All sessions for a person, newest first (parent app)."""
+        rows = self._db.query_all(
+            "SELECT * FROM session WHERE person_id = ? ORDER BY started_at DESC, id DESC",
+            (person_id,),
+        )
+        return [_to_session(r) for r in rows]
+
+    def count_by_person(self, person_id: int) -> int:
+        row = self._db.query_one(
+            "SELECT COUNT(*) AS n FROM session WHERE person_id = ?", (person_id,)
+        )
+        return int(row["n"]) if row else 0
+
 
 class MessageRepo:
     def __init__(self, db: Database) -> None:
@@ -188,6 +210,22 @@ class MessageRepo:
             (session_id, limit),
         )
         return [_to_message(r) for r in rows]
+
+    def list_by_session(self, session_id: int) -> list[MessageRow]:
+        """Full transcript of a session, chronological (parent app)."""
+        rows = self._db.query_all(
+            "SELECT * FROM message WHERE session_id = ? ORDER BY id ASC", (session_id,)
+        )
+        return [_to_message(r) for r in rows]
+
+    def count_for_person(self, person_id: int) -> int:
+        """Total messages across all of a person's sessions (dashboard stat)."""
+        row = self._db.query_one(
+            "SELECT COUNT(*) AS n FROM message m JOIN session s ON m.session_id = s.id "
+            "WHERE s.person_id = ?",
+            (person_id,),
+        )
+        return int(row["n"]) if row else 0
 
 
 class FaceEmbeddingRepo:

@@ -29,6 +29,11 @@ class PersonCreate(BaseModel):
     role: str | None = Field(default=None, max_length=40)
 
 
+class PersonUpdate(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    role: str | None = Field(default=None, max_length=40)
+
+
 class PersonOut(BaseModel):
     id: int
     display_name: str
@@ -43,6 +48,33 @@ class FactOut(BaseModel):
     value: str
     confidence: float
     updated_at: str
+
+
+# --- Parent companion app (M9): read/manage surfaces ---
+class SessionOut(BaseModel):
+    id: int
+    started_at: str
+    ended_at: str | None = None
+    summary: str | None = None
+
+
+class MessageOut(BaseModel):
+    id: int
+    role: str  # "child" | "buddy"
+    text: str
+    emotion: str | None = None
+    created_at: str
+
+
+class PersonStatsOut(BaseModel):
+    person_id: int
+    session_count: int
+    message_count: int
+    fact_count: int
+    created_at: str
+    last_seen_at: str | None = None
+    face_enrolled: bool
+    face_consent: bool
 
 
 # --- /session ---
