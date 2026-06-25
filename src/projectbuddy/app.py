@@ -51,6 +51,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Add wall-clock timestamps to uvicorn's logs (so latency is visible at a glance).
+        ts_fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s", "%H:%M:%S")
+        for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+            for handler in logging.getLogger(name).handlers:
+                handler.setFormatter(ts_fmt)
+
         container = Container.build(settings)
         app.state.container = container
         await container.llm.warmup()  # pre-warm to protect first-token latency

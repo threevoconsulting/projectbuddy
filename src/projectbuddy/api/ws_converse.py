@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import binascii
 import logging
+import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -21,6 +22,7 @@ from projectbuddy.deps import Container
 from projectbuddy.orchestrator.turn import resolve_session, run_greeting, run_intro, run_turn
 from projectbuddy.protocol.llm_envelope import Emotion
 from projectbuddy.protocol.ws import (
+    AudioFrame,
     ClientAudioFrame,
     EndFrame,
     FinalFrame,
@@ -108,19 +110,33 @@ async def _handle_utterance(
         return None  # drop the stale id; the next utterance starts fresh
     person, session = resolved
 
+    t0 = time.perf_counter()
     transcript = (await c.stt.transcribe(audio)).strip()
+    stt_s = time.perf_counter() - t0
     if not transcript:
-        _log.info("voice: %.1fs audio -> STT heard nothing", secs)
+        _log.info("voice: %.1fs audio -> STT heard nothing (stt %.2fs)", secs, stt_s)
         await _didnt_catch(ws)
         return session.id
-    _log.info("voice: %.1fs audio -> heard: %r", secs, transcript)
+    _log.info("voice: %.1fs audio -> heard %r (stt %.2fs)", secs, transcript, stt_s)
 
     say = ""
+    first_audio_s: float | None = None
+    t_turn = time.perf_counter()
     async for frame in run_turn(c, person=person, session=session, transcript=transcript):
+        if isinstance(frame, AudioFrame) and first_audio_s is None:
+            first_audio_s = time.perf_counter() - t_turn  # think → first spoken sound
         if isinstance(frame, FinalFrame):
             say = frame.say
         await ws.send_json(frame.model_dump())
-    _log.info("voice: Buddy replied: %r", say)
+    total_s = time.perf_counter() - t0
+    ttfs = f"{first_audio_s:.2f}s" if first_audio_s is not None else "n/a"
+    _log.info(
+        "voice: replied %r (stt %.2fs, think→first-sound %s, total %.2fs)",
+        say,
+        stt_s,
+        ttfs,
+        total_s,
+    )
     return session.id
 
 
