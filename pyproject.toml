@@ -22,7 +22,7 @@ mac = [
     "faster-whisper>=1.0",
     "piper-tts>=1.2",
     "webrtcvad>=2.0.10",
-    "numpy>=1.26",
+    "numpy>=1.26,<2",       # InsightFace + onnxruntime need numpy 1.x (see perception)
     "kokoro>=0.9",          # optional, more lifelike voice (PB_TTS_BACKEND=kokoro)
 ]
 # Phase 2 face recognition. This is a personal/home-use project, so the original
@@ -32,7 +32,9 @@ mac = [
 perception = [
     "insightface>=0.7",
     "onnxruntime>=1.17",
-    "numpy>=1.26",
+    # InsightFace's compiled bits + onnxruntime require numpy 1.x; numpy 2 silently
+    # corrupts the recognition embeddings (near-orthogonal cosine for the same face).
+    "numpy>=1.26,<2",
     "pillow>=10.0",     # decode capture frames before embedding
 ]
 
