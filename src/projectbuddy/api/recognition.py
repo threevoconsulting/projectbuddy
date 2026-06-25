@@ -19,6 +19,7 @@ import binascii
 from fastapi import APIRouter, Depends, HTTPException
 
 from projectbuddy.core.recognition import average_vectors, best_match
+from projectbuddy.core.retention import sweep_face_retention
 from projectbuddy.deps import Container, get_container
 from projectbuddy.protocol.rest import (
     ConsentOut,
@@ -27,6 +28,7 @@ from projectbuddy.protocol.rest import (
     EnrollResponse,
     RecognizeRequest,
     RecognizeResponse,
+    RetentionRunResponse,
 )
 
 router = APIRouter()
@@ -61,6 +63,9 @@ async def set_consent(
         )
     else:
         c.consents.revoke(person_id, body.scope)
+        # Revoking face consent removes the stored face template immediately.
+        if body.scope == _FACE:
+            c.face_embeddings.delete(person_id)
     row = c.consents.get(person_id, body.scope)
     assert row is not None
     return ConsentOut(
@@ -129,3 +134,10 @@ async def recognize_face(
         display_name=display_name,
         confidence=score,
     )
+
+
+@router.post("/retention/run", response_model=RetentionRunResponse)
+async def run_retention(c: Container = Depends(get_container)) -> RetentionRunResponse:
+    """Delete face data past its retention date now (also runs on a timer)."""
+    deleted = sweep_face_retention(c.consents, c.face_embeddings)
+    return RetentionRunResponse(deleted_person_ids=deleted)

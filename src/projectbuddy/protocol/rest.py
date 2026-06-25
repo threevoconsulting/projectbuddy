@@ -106,3 +106,7 @@ class RecognizeResponse(BaseModel):
     person_id: int | None = None
     display_name: str | None = None
     confidence: float
+
+
+class RetentionRunResponse(BaseModel):
+    deleted_person_ids: list[int]

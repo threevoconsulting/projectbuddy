@@ -65,6 +65,27 @@ def test_unintelligible_input_is_handled_gently(client: TestClient) -> None:
         assert final["type"] == "final" and final["transcript"] == ""
 
 
+def test_hello_streams_a_spoken_greeting(client: TestClient) -> None:
+    with client.websocket_connect("/ws/converse") as ws:
+        assert ws.receive_json()["value"] == "listening"
+
+        # The camera recognized someone → ask Buddy to greet them (M8).
+        ws.send_json({"type": "hello"})
+        frames: list[dict] = []
+        while True:
+            frame = ws.receive_json()
+            frames.append(frame)
+            if frame["type"] == "final":
+                break
+
+        types = [f["type"] for f in frames]
+        assert "emotion" in types and "audio" in types and types[-1] == "final"
+        assert types.index("emotion") < types.index("audio")  # face still leads
+        assert frames[-1]["say"]  # Buddy actually says something
+        # Returns to listening, ready for the conversation.
+        assert ws.receive_json() == {"type": "state", "value": "listening"}
+
+
 def test_audio_chunks_are_base64_pcm(client: TestClient) -> None:
     with client.websocket_connect("/ws/converse") as ws:
         ws.receive_json()  # listening

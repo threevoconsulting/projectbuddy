@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # Memory tuning
     short_term_turns: int = 12  # recent turns kept verbatim in context
 
+    # Retention sweep cadence (M8): how often to delete face data past its
+    # consent.retention_until. Default 6 hours; also runs at startup and on demand.
+    retention_sweep_seconds: int = 21_600
+
 
 def get_settings() -> Settings:
     """Build settings from the environment. Override in tests via dependency injection."""

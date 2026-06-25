@@ -74,3 +74,34 @@ async def run_turn(
         person_id=person.id, session_id=session.id, child_text=transcript, reply=reply
     )
     c.persons.touch_last_seen(person.id)
+
+
+async def run_greeting(
+    c: Container, *, person: Person, session: SessionRow, display_name: str | None = None
+) -> AsyncIterator[ServerFrame]:
+    """Greet a just-recognized person out loud (M8 continuity).
+
+    Same pipeline as :func:`run_turn` but seeded by "the child arrived" instead of a
+    spoken transcript, so Buddy welcomes them by name using what it remembers. Only
+    Buddy's line is persisted (there is no child utterance).
+    """
+    yield StateFrame(value="thinking")
+
+    messages = c.memory.build_greeting_context(
+        person_id=person.id,
+        session_id=session.id,
+        display_name=display_name or person.display_name,
+    )
+    raw = await c.llm.chat(messages, json=True)
+    reply = await parse_reply(raw, messages, c.llm)
+    reply = safety.enforce(reply)
+
+    yield EmotionFrame(value=reply.emotion)
+    yield StateFrame(value="speaking")
+    async for chunk in c.tts.synthesize(reply.say):
+        yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
+
+    yield FinalFrame(transcript="", say=reply.say)
+
+    c.memory.commit_buddy_line(session_id=session.id, reply=reply)
+    c.persons.touch_last_seen(person.id)

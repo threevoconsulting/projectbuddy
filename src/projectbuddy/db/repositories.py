@@ -276,6 +276,15 @@ class ConsentRepo:
         )
         return [_to_consent(r) for r in rows]
 
+    def expired(self, scope: str) -> list[int]:
+        """Person ids whose granted consent for ``scope`` is past its retention date."""
+        rows = self._db.query_all(
+            "SELECT person_id FROM consent WHERE scope = ? AND granted = 1 "
+            "AND retention_until IS NOT NULL AND retention_until < datetime('now')",
+            (scope,),
+        )
+        return [int(r["person_id"]) for r in rows]
+
 
 def _to_person(r: sqlite3.Row) -> Person:
     return Person(

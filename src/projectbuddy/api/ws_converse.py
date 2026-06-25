@@ -17,12 +17,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from projectbuddy.deps import Container
-from projectbuddy.orchestrator.turn import resolve_session, run_turn
+from projectbuddy.orchestrator.turn import resolve_session, run_greeting, run_turn
 from projectbuddy.protocol.llm_envelope import Emotion
 from projectbuddy.protocol.ws import (
     ClientAudioFrame,
     EndFrame,
     FinalFrame,
+    HelloFrame,
     StartFrame,
     StateFrame,
 )
@@ -51,6 +52,12 @@ async def ws_converse(ws: WebSocket) -> None:
                 start = StartFrame.model_validate(msg)
                 session_id = start.session_id
                 buffer.clear()
+                await ws.send_json(StateFrame(value="listening").model_dump())
+
+            elif kind == "hello":
+                # The camera recognized someone — greet them out loud (M8).
+                hello = HelloFrame.model_validate(msg)
+                session_id = await _handle_greeting(ws, container, hello.session_id)
                 await ws.send_json(StateFrame(value="listening").model_dump())
 
             elif kind == "audio":
@@ -92,6 +99,17 @@ async def _handle_utterance(
         return session.id
 
     async for frame in run_turn(c, person=person, session=session, transcript=transcript):
+        await ws.send_json(frame.model_dump())
+    return session.id
+
+
+async def _handle_greeting(ws: WebSocket, c: Container, session_id: int | None) -> int | None:
+    """Run an arrival greeting for the recognized session. Returns the session id."""
+    resolved = resolve_session(c, session_id)
+    if resolved is None:
+        return None
+    person, session = resolved
+    async for frame in run_greeting(c, person=person, session=session):
         await ws.send_json(frame.model_dump())
     return session.id
 

@@ -127,6 +127,7 @@ function speakAloud(text) {
 // Conversation is bound to whoever the camera currently recognizes.
 let sessionId = null;
 let currentPersonId = null;
+let requestGreeting = null; // set to voice.greet once the WS client is wired
 
 async function sendText(text) {
   if (!text.trim()) return;
@@ -187,16 +188,23 @@ async function startCamera() {
 async function bindPerson(personId, name) {
   if (personId === currentPersonId) return;
   currentPersonId = personId;
+  const who = name || 'friend';
   try {
     const s = await postJSON('/session/start', { person_id: personId }).then((r) => r.json());
     sessionId = s.session_id;
-    const who = name || 'friend';
-    caption.textContent = s.resume_summary
-      ? `Hi ${who}! ${s.resume_summary}`
-      : `Hi ${who}! So good to see you!`;
-    buddy.toSpeaking('celebrating');
     resetSleepy();
-    setTimeout(() => buddy.toIdle(), 1500);
+    if (requestGreeting) {
+      // Buddy speaks the greeting in its real voice (uses memory server-side).
+      caption.textContent = `Hi ${who}!`;
+      requestGreeting(sessionId);
+    } else {
+      // No voice channel — fall back to a visual greeting.
+      caption.textContent = s.resume_summary
+        ? `Hi ${who}! ${s.resume_summary}`
+        : `Hi ${who}! So good to see you!`;
+      buddy.toSpeaking('celebrating');
+      setTimeout(() => buddy.toIdle(), 1500);
+    }
   } catch (_) {
     /* recognition is best-effort; chat continues regardless */
   }
@@ -344,6 +352,7 @@ if (params.get('mock') === '1') {
     },
     getSessionId: () => sessionId,
   });
+  requestGreeting = voice.greet; // let recognition trigger a spoken greeting
   const press = (e) => {
     e.preventDefault();
     talkBtn.classList.add('active');

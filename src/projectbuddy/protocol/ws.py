@@ -63,6 +63,13 @@ class StartFrame(BaseModel):
     session_id: int | None = None
 
 
+class HelloFrame(BaseModel):
+    """Ask Buddy to greet a just-recognized person (M8). Streams a greeting turn."""
+
+    type: Literal["hello"] = "hello"
+    session_id: int | None = None
+
+
 class ClientAudioFrame(BaseModel):
     type: Literal["audio"] = "audio"
     chunk: str  # base64-encoded 16 kHz mono 16-bit PCM
@@ -72,4 +79,4 @@ class EndFrame(BaseModel):
     type: Literal["end"] = "end"
 
 
-ClientFrame = StartFrame | ClientAudioFrame | EndFrame
+ClientFrame = StartFrame | HelloFrame | ClientAudioFrame | EndFrame

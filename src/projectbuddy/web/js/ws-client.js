@@ -124,13 +124,26 @@ window.BuddyWS = (function () {
       return ensureSocket().catch(() => {});
     }
 
+    // Ask Buddy to greet a just-recognized person out loud (M8). Streams a greeting
+    // turn back over the same socket (emotion → speaking → audio → final).
+    async function greet(sessionId) {
+      try {
+        await ensureSocket();
+      } catch (_) {
+        return;
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'hello', session_id: sessionId ?? null }));
+      }
+    }
+
     function close() {
       manualClose = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) ws.close();
     }
 
-    return { startTalking, stopTalking, open, close };
+    return { startTalking, stopTalking, open, close, greet };
   }
 
   return { connect };

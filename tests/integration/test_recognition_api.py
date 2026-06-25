@@ -80,3 +80,35 @@ def test_revoke_blocks_enroll_again(client: TestClient) -> None:
     client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": False})
     r = client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"emma-face")]})
     assert r.status_code == 403
+
+
+def test_revoke_consent_deletes_face_template(client: TestClient) -> None:
+    pid = _make_person(client)
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})
+    client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"emma-face")]})
+    assert client.post("/recognize", json={"image": _b64(b"emma-face")}).json()["matched"]
+
+    # Revoking face consent must remove the stored template immediately.
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": False})
+    assert client.post("/recognize", json={"image": _b64(b"emma-face")}).json()["matched"] is False
+
+
+def test_retention_run_deletes_expired(client: TestClient) -> None:
+    pid = _make_person(client)
+    client.post(
+        f"/person/{pid}/consent",
+        json={"scope": "face", "granted": True, "retention_until": "2000-01-01"},
+    )
+    client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"emma-face")]})
+
+    run = client.post("/retention/run")
+    assert run.status_code == 200 and pid in run.json()["deleted_person_ids"]
+    assert client.post("/recognize", json={"image": _b64(b"emma-face")}).json()["matched"] is False
+
+
+def test_recognize_returns_display_name(client: TestClient) -> None:
+    pid = _make_person(client, name="Ada")
+    client.post(f"/person/{pid}/consent", json={"scope": "face", "granted": True})
+    client.post(f"/person/{pid}/enroll", json={"images": [_b64(b"ada-face")]})
+    rec = client.post("/recognize", json={"image": _b64(b"ada-face")}).json()
+    assert rec["matched"] and rec["display_name"] == "Ada"
