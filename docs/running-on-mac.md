@@ -40,11 +40,11 @@ is a warmer alternative. For a more lifelike voice, set `PB_TTS_BACKEND=kokoro`.
 candidates side by side with `uv run python scripts/compare_voices.py` — it writes a WAV
 per voice to `./voice-samples/` so you can listen and pick.
 
-Open the face full-screen at <http://localhost:8000/app/> and **hold the 🎤 button to
+Open the face full-screen at <http://localhost:8765/app/> and **hold the 🎤 button to
 talk** (push-to-talk); release and Buddy replies, expression first, then voice.
 
 > **Microphone access** needs a secure context: `localhost` works directly, but an iPad
-> pointed at the Mac over Wi-Fi (`http://<mac-ip>:8000/app/`) will not get mic permission
+> pointed at the Mac over Wi-Fi (`http://<mac-ip>:8765/app/`) will not get mic permission
 > over plain HTTP — front it with HTTPS (e.g. a local reverse proxy) for the tablet
 > "device on the desk" demo. The text box works everywhere as a fallback.
 

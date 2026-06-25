@@ -48,15 +48,15 @@ Requires [uv](https://docs.astral.sh/uv/).
 ```bash
 make setup           # uv sync (fakes only)
 make lint && make types && make test
-make run             # http://127.0.0.1:8000  → face at /app/
+make run             # http://127.0.0.1:8765  → face at /app/
 ```
 
-- **Talk to Buddy (voice):** open <http://127.0.0.1:8000/app/> and **hold 🎤 to talk**
+- **Talk to Buddy (voice):** open <http://127.0.0.1:8765/app/> and **hold 🎤 to talk**
   (push-to-talk over `WS /ws/converse`). On the faked stack STT/TTS are stand-ins — the
   loop, frame ordering, and face animation are real; a real voice needs the Mac stack.
 - **Talk to Buddy (text):** type in the same screen — the faked brain replies with an
   emotion + line and the face reacts.
-- **Face QA, no backend:** open <http://127.0.0.1:8000/app/?mock=1> to cycle all eight
+- **Face QA, no backend:** open <http://127.0.0.1:8765/app/?mock=1> to cycle all eight
   expressions with a simulated speaking mouth.
 - **Kiosk layout:** add `?kiosk=1` to hide the text controls.
 
