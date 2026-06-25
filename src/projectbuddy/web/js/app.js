@@ -144,9 +144,20 @@ let currentPersonId = null;
 let requestGreeting = null; // set to voice.greet once the WS client is wired
 let requestIntro = null; // set to voice.intro — used for unrecognized new faces
 let introduced = false; // have we introduced to the current unknown face?
+const greetedIds = new Set(); // people greeted this page-load (greet each at most once)
+let noFaceTicks = 0; // consecutive empty frames (debounce "the face left")
+let lastInteraction = 0; // ms timestamp of the last user action
+
+// The camera must never talk over an active conversation: skip auto greet/intro for a
+// while after the child speaks or types.
+const INTERACTION_QUIET_MS = 20000;
+function markInteraction() {
+  lastInteraction = Date.now();
+}
 
 async function sendText(text) {
   if (!text.trim()) return;
+  markInteraction();
   buddy.toThinking();
   caption.textContent = '…';
   try {
@@ -200,15 +211,18 @@ async function startCamera() {
   };
 }
 
-// Recognized (or freshly enrolled) → bind the conversation to that person and greet.
-async function bindPerson(personId, name) {
+// Bind the conversation to a person (their session = their memory). With greet=true,
+// Buddy also says hello out loud; recognition passes greet=false to rebind quietly.
+async function bindPerson(personId, name, greet = true) {
   if (personId === currentPersonId) return;
   currentPersonId = personId;
   const who = name || 'friend';
   try {
     const s = await postJSON('/session/start', { person_id: personId }).then((r) => r.json());
     sessionId = s.session_id;
+    if (!greet) return;
     resetSleepy();
+    markInteraction(); // the greeting itself counts as activity — don't immediately re-fire
     if (requestGreeting) {
       // Buddy speaks the greeting in its real voice (uses memory server-side).
       caption.textContent = `Hi ${who}!`;
@@ -241,8 +255,9 @@ function addEnrollButton(grabFrame) {
     try {
       const r = await postJSON('/recognize', { image: probe }).then((x) => x.json());
       if (r.matched) {
-        caption.textContent = `I already know you, ${r.display_name || 'friend'}! 😊`;
+        caption.textContent = `I already know you, ${r.display_name || 'friend'}!`;
         currentPersonId = null; // re-greet
+        greetedIds.add(r.person_id);
         await bindPerson(r.person_id, r.display_name);
         return;
       }
@@ -277,6 +292,7 @@ function addEnrollButton(grabFrame) {
         caption.textContent = `Enroll failed (HTTP ${res.status}).`;
       } else {
         currentPersonId = null; // force a fresh greeting/bind for the new profile
+        greetedIds.add(person.id);
         await bindPerson(person.id, name);
       }
     } catch (_) {
@@ -289,28 +305,46 @@ function addEnrollButton(grabFrame) {
   document.getElementById('stage').appendChild(btn);
 }
 
-// Poll recognition. Known face → personalized greeting + bind their session. Unknown
-// face → Buddy introduces itself once and asks for a name. No face → reset so the next
-// arrival is greeted/introduced afresh.
+// Poll recognition — but stay out of the way of the actual conversation. Recognition's
+// only job is the FIRST hello: greet a known person once, introduce to an unknown face
+// once. It never re-greets, never resets a bound person on a noisy no-match frame, and
+// never fires while the child is talking or just interacted (recognition is jittery
+// frame-to-frame, so without this it talks over you).
 function startRecognitionLoop(grabFrame) {
   setInterval(async () => {
-    // Don't interrupt an active turn.
-    if (enrolling || buddy.state === 'thinking' || buddy.state === 'speaking') return;
+    if (enrolling) return;
+    // Never interrupt an in-flight turn (listening/thinking/speaking)…
+    if (buddy.state !== 'idle') return;
+    // …nor for a quiet window after the child spoke or typed.
+    if (Date.now() - lastInteraction < INTERACTION_QUIET_MS) return;
+
     const image = grabFrame();
     if (!image) return;
     try {
       const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
-      if (r.matched && r.person_id !== currentPersonId) {
+
+      if (r.matched) {
+        noFaceTicks = 0;
         introduced = false;
-        await bindPerson(r.person_id, r.display_name);
-      } else if (!r.matched && r.face_present && !introduced) {
-        // A new, unrecognized face — say hello and ask their name (once).
-        introduced = true;
-        currentPersonId = null;
-        caption.textContent = "Hi! I'm Buddy. What's your name?";
-        if (requestIntro) requestIntro();
-      } else if (!r.face_present) {
-        introduced = false; // nobody there — re-introduce when someone returns
+        if (r.person_id !== currentPersonId) {
+          // Greet a person only the first time we see them this session; otherwise
+          // just rebind their session quietly so chat uses their memory.
+          const firstHello = !greetedIds.has(r.person_id);
+          greetedIds.add(r.person_id);
+          await bindPerson(r.person_id, r.display_name, firstHello);
+        }
+      } else if (r.face_present) {
+        noFaceTicks = 0;
+        // Someone unrecognized, and we're not already bound to a person → introduce once.
+        if (!introduced && currentPersonId === null) {
+          introduced = true;
+          caption.textContent = "Hi! I'm Buddy. What's your name?";
+          markInteraction();
+          if (requestIntro) requestIntro();
+        }
+      } else if (++noFaceTicks >= 3) {
+        // Face gone for a sustained stretch — allow a fresh intro when someone returns.
+        introduced = false;
       }
     } catch (_) {
       /* keep trying on the next tick */
@@ -384,6 +418,7 @@ if (params.get('mock') === '1') {
   requestIntro = voice.intro; // …and a self-introduction for unknown faces
   const press = (e) => {
     e.preventDefault();
+    markInteraction();
     talkBtn.classList.add('active');
     caption.textContent = "I'm listening…";
     voice.startTalking();
