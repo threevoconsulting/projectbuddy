@@ -9,7 +9,7 @@
 // show a gentle "reconnecting" cue. A clean shutdown (page close) does not reconnect.
 
 window.BuddyWS = (function () {
-  function connect(buddyState, { onCaption, onStatus } = {}) {
+  function connect(buddyState, { onCaption, onStatus, getSessionId } = {}) {
     let ws = null;
     let talking = false;
     let manualClose = false;
@@ -86,6 +86,13 @@ window.BuddyWS = (function () {
         if (onStatus) onStatus('reconnecting');
         scheduleReconnect();
         return;
+      }
+      // Bind this utterance to the recognized person's session, if any, so the brain
+      // uses their memory. With no session (nobody recognized) the server keeps its
+      // own continuity for the default profile.
+      const sid = getSessionId ? getSessionId() : null;
+      if (sid && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'start', session_id: sid }));
       }
       window.BuddyAudio.resetPlayback();
       buddyState.toListening();

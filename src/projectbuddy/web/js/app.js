@@ -1,10 +1,9 @@
-// Wiring for the Phase-1 text demo + the mock harness + behaviour polish (M6).
+// Buddy front-end wiring: one screen where Buddy sees you (camera recognition),
+// remembers you (per-person session), and talks with you (voice + text).
 //
-//   /app/            → type or hold-to-talk; backend returns {emotion, say}, face reacts.
-//   /app/?mock=1     → cycle all 8 emotions (incl. sleepy) with a fake amplitude
-//                      oscillator (no backend / no models — pure face QA).
-//   /app/?kiosk=1    → robot-screen layout: hide controls, keep screen awake, hide the
-//                      cursor when idle, suppress context menu / zoom.
+//   /app/            → camera recognizes the person + hold-to-talk / type to chat.
+//   /app/?mock=1     → cycle all 8 emotions (no backend / no models — pure face QA).
+//   /app/?kiosk=1    → robot-screen layout: hide controls, wake-lock, hide cursor.
 //
 // Buddy also blinks at rest and drifts to sleep after a stretch of no interaction.
 
@@ -17,6 +16,13 @@ if (KIOSK) document.body.classList.add('kiosk');
 
 buddy.toIdle();
 caption.textContent = "Hi! I'm Buddy. Talk to me!";
+
+const postJSON = (url, body) =>
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
 // --- Camera-active indicator (M7): the only owner of the on-screen "camera on" cue. ---
 window.BuddyCamera = {
@@ -118,7 +124,9 @@ function speakAloud(text) {
   }
 }
 
+// Conversation is bound to whoever the camera currently recognizes.
 let sessionId = null;
+let currentPersonId = null;
 
 async function sendText(text) {
   if (!text.trim()) return;
@@ -146,6 +154,141 @@ async function sendText(text) {
   }
 }
 
+// --- Vision: camera, recognition, and enrollment, wired into the conversation. ---
+
+let enrolling = false; // pause recognition while capturing an enrollment
+
+// Open the camera and return a frame grabber, or null if unavailable/denied.
+async function startCamera() {
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  const canvas = document.createElement('canvas');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    window.BuddyCamera.show();
+    video.srcObject = stream;
+    await video.play();
+  } catch (_) {
+    return null; // no camera / denied — chat still works without it
+  }
+  return () => {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return null;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg').split(',')[1];
+  };
+}
+
+// Recognized (or freshly enrolled) → bind the conversation to that person and greet.
+async function bindPerson(personId, name) {
+  if (personId === currentPersonId) return;
+  currentPersonId = personId;
+  try {
+    const s = await postJSON('/session/start', { person_id: personId }).then((r) => r.json());
+    sessionId = s.session_id;
+    const who = name || 'friend';
+    caption.textContent = s.resume_summary
+      ? `Hi ${who}! ${s.resume_summary}`
+      : `Hi ${who}! So good to see you!`;
+    buddy.toSpeaking('celebrating');
+    resetSleepy();
+    setTimeout(() => buddy.toIdle(), 1500);
+  } catch (_) {
+    /* recognition is best-effort; chat continues regardless */
+  }
+}
+
+// The green enroll button: capture a few frames → create person → consent → enroll.
+function addEnrollButton(grabFrame) {
+  const btn = document.createElement('button');
+  btn.textContent = '📸 Enroll my face';
+  btn.style.cssText =
+    'position:absolute;top:16px;left:18px;border:none;border-radius:12px;' +
+    'padding:10px 14px;font:inherit;font-weight:800;color:#fff;background:#22c55e;' +
+    'cursor:pointer;z-index:10;';
+  btn.addEventListener('click', async () => {
+    const probe = grabFrame();
+    if (!probe) return;
+    // Already enrolled? Recognize first so we greet instead of making a duplicate.
+    try {
+      const r = await postJSON('/recognize', { image: probe }).then((x) => x.json());
+      if (r.matched) {
+        caption.textContent = `I already know you, ${r.display_name || 'friend'}! 😊`;
+        currentPersonId = null; // re-greet
+        await bindPerson(r.person_id, r.display_name);
+        return;
+      }
+    } catch (_) {
+      /* fall through to enrollment */
+    }
+    const name = prompt("I don't know you yet — what's your name?", '');
+    if (!name) return;
+    enrolling = true;
+    btn.disabled = true;
+    caption.textContent = `Capturing ${name}…`;
+    const images = [];
+    for (let i = 0; i < 3; i++) {
+      const f = grabFrame();
+      if (f) images.push(f);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    try {
+      if (!images.length) {
+        caption.textContent = 'No frame captured — try again.';
+        return;
+      }
+      caption.textContent = `Enrolling ${name}…`;
+      const person = await postJSON('/person', { display_name: name, role: 'child' }).then((r) =>
+        r.json()
+      );
+      await postJSON(`/person/${person.id}/consent`, { scope: 'face', granted: true });
+      const res = await postJSON(`/person/${person.id}/enroll`, { images });
+      if (res.status === 400) {
+        caption.textContent = "I couldn't find a face — try again, well-lit and centered.";
+      } else if (!res.ok) {
+        caption.textContent = `Enroll failed (HTTP ${res.status}).`;
+      } else {
+        currentPersonId = null; // force a fresh greeting/bind for the new profile
+        await bindPerson(person.id, name);
+      }
+    } catch (_) {
+      caption.textContent = 'Enroll failed — is the backend running?';
+    } finally {
+      btn.disabled = false;
+      enrolling = false;
+    }
+  });
+  document.getElementById('stage').appendChild(btn);
+}
+
+// Poll recognition; when the recognized person changes, bind the conversation to them.
+function startRecognitionLoop(grabFrame) {
+  setInterval(async () => {
+    if (enrolling || buddy.state === 'thinking') return; // don't fight a turn
+    const image = grabFrame();
+    if (!image) return;
+    try {
+      const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
+      if (r.matched && r.person_id !== currentPersonId) {
+        await bindPerson(r.person_id, r.display_name);
+      }
+    } catch (_) {
+      /* keep trying on the next tick */
+    }
+  }, 3000);
+}
+
+async function setupVision() {
+  const grabFrame = await startCamera();
+  if (!grabFrame) return; // camera unavailable — chat-only is fine
+  addEnrollButton(grabFrame);
+  startRecognitionLoop(grabFrame);
+}
+
 // --- Mock harness: cycle every emotion (incl. sleepy) + oscillate amplitude. ---
 function startMock() {
   document.body.classList.add('kiosk');
@@ -158,125 +301,14 @@ function startMock() {
     buddy.toSpeaking(emotions[i]);
     document.getElementById('emotion-label').textContent = emotions[i];
   }, 1600);
-  // Continuous gentle mouth movement.
   (function osc(now) {
     buddy.setAmplitude(0.4 + 0.4 * Math.abs(Math.sin((now || 0) / 220)));
     requestAnimationFrame(osc);
   })();
 }
 
-// --- Camera test (M7, ?camtest=1): a dev affordance to exercise the whole face flow.
-//     Grabs a frame periodically and asks the backend who it sees, and offers an
-//     "Enroll my face" button that runs create-person → consent → enroll on the
-//     current frame so recognition has someone to match. The full parent capture UI
-//     lands in M9. ---
-async function startCamtest() {
-  document.body.classList.add('kiosk');
-  caption.textContent = 'Camera test — point at a face, then "Enroll my face".';
-  const video = document.createElement('video');
-  video.autoplay = true;
-  video.playsInline = true;
-  const canvas = document.createElement('canvas');
-
-  let busy = false; // pause the recognize loop during enrollment
-
-  const grabFrame = () => {
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    if (!w || !h) return null;
-    canvas.width = w;
-    canvas.height = h;
-    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-    return canvas.toDataURL('image/jpeg').split(',')[1];
-  };
-
-  const postJSON = (url, body) =>
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-  // An on-screen enroll button (created here so no HTML change is needed).
-  const enrollBtn = document.createElement('button');
-  enrollBtn.textContent = '📸 Enroll my face';
-  enrollBtn.style.cssText =
-    'position:absolute;bottom:24px;left:50%;transform:translateX(-50%);' +
-    'border:none;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;' +
-    'color:#fff;background:#22c55e;cursor:pointer;z-index:10;';
-  enrollBtn.addEventListener('click', async () => {
-    if (!grabFrame()) return;
-    const name = prompt("Whose face is this?", 'Me');
-    if (!name) return;
-    busy = true;
-    enrollBtn.disabled = true;
-    // Capture several frames a fraction of a second apart so the backend can average
-    // them (and log cross-frame consistency for the same face).
-    caption.textContent = `Capturing ${name}…`;
-    const images = [];
-    for (let i = 0; i < 3; i++) {
-      const f = grabFrame();
-      if (f) images.push(f);
-      await new Promise((r) => setTimeout(r, 400));
-    }
-    if (!images.length) {
-      caption.textContent = 'No frame captured — try again.';
-      enrollBtn.disabled = false;
-      busy = false;
-      return;
-    }
-    caption.textContent = `Enrolling ${name}…`;
-    try {
-      const person = await postJSON('/person', { display_name: name, role: 'child' }).then((r) =>
-        r.json()
-      );
-      await postJSON(`/person/${person.id}/consent`, { scope: 'face', granted: true });
-      const res = await postJSON(`/person/${person.id}/enroll`, { images });
-      if (res.status === 400) {
-        caption.textContent = 'I couldn’t find a face in that frame — try again, well-lit and centered.';
-      } else if (!res.ok) {
-        caption.textContent = `Enroll failed (HTTP ${res.status}).`;
-      } else {
-        caption.textContent = `Enrolled ${name}! Now point the camera back at your face.`;
-      }
-    } catch (_) {
-      caption.textContent = 'Enroll failed — is the backend running?';
-    } finally {
-      enrollBtn.disabled = false;
-      busy = false;
-    }
-  });
-  document.getElementById('stage').appendChild(enrollBtn);
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    window.BuddyCamera.show();
-    video.srcObject = stream;
-    await video.play();
-  } catch (_) {
-    caption.textContent = 'No camera available for the test.';
-    return;
-  }
-
-  setInterval(async () => {
-    if (busy) return;
-    const image = grabFrame();
-    if (!image) return;
-    try {
-      const r = await postJSON('/recognize', { image }).then((resp) => resp.json());
-      caption.textContent = r.matched
-        ? `I see ${r.person_id ? 'person #' + r.person_id : 'someone'} (${r.confidence.toFixed(2)})`
-        : `No match yet (best ${r.confidence.toFixed(2)})`;
-    } catch (_) {
-      /* keep trying on the next tick */
-    }
-  }, 2500);
-}
-
 if (params.get('mock') === '1') {
   startMock();
-} else if (params.get('camtest') === '1') {
-  startCamtest();
 } else {
   startBehaviours();
   if (KIOSK) setupKiosk();
@@ -310,6 +342,7 @@ if (params.get('mock') === '1') {
         buddy.setEmotion('curious');
       }
     },
+    getSessionId: () => sessionId,
   });
   const press = (e) => {
     e.preventDefault();
@@ -327,14 +360,15 @@ if (params.get('mock') === '1') {
   talkBtn.addEventListener('pointerleave', release);
   talkBtn.addEventListener('pointercancel', release);
 
-  // Keep a live connection on the always-on kiosk, and recover it when the screen
-  // wakes or the tab returns to the foreground.
   if (KIOSK) {
     voice.open();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') voice.open();
     });
   }
+
+  // Camera recognition runs alongside the chat (best-effort; no-op if denied).
+  setupVision();
 }
 
 // Register the PWA service worker (offline kiosk shell).
