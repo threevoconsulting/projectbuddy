@@ -147,7 +147,7 @@ async function memory() {
   screen.innerHTML = `
     <h1>Memory</h1>
     <p class="muted">Everything Buddy remembers about ${esc(personName())}. Delete anything, anytime.</p>
-    <div class="list">${rows || '<div class="empty">Buddy hasn\\'t remembered anything yet.</div>'}</div>`;
+    <div class="list">${rows || '<div class="empty">Nothing remembered yet.</div>'}</div>`;
   screen.querySelectorAll('[data-fid]').forEach((b) =>
     b.addEventListener('click', async () => {
       await API.deleteFact(currentId, Number(b.dataset.fid));
