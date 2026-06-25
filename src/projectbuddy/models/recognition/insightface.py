@@ -62,20 +62,11 @@ class InsightFaceRecognizer(FaceRecognizer):
             if self._rec is not None and kps is not None:
                 aimg = face_align.norm_crop(bgr, landmark=kps, image_size=112)
                 emb = np.asarray(self._rec.get_feat(aimg), dtype="float32").flatten()
-        except Exception as exc:  # log and fall back to face.embedding
-            _log.info("explicit align/get_feat failed: %r", exc)
+        except Exception as exc:  # log once and fall back to face.embedding
+            _log.warning("insightface align/get_feat failed: %r", exc)
 
         if emb is None or emb.size == 0:
             emb = np.asarray(face.embedding, dtype="float32")
-
-        det = float(getattr(face, "det_score", 0.0))
-        _log.info(
-            "embed: faces=%d det=%.2f kps=%s emb_norm=%.2f",
-            len(faces),
-            det,
-            kps is not None,
-            float(np.linalg.norm(emb)),
-        )
 
         norm = float(np.linalg.norm(emb))
         if norm == 0.0:

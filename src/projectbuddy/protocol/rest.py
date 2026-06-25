@@ -104,4 +104,5 @@ class RecognizeRequest(BaseModel):
 class RecognizeResponse(BaseModel):
     matched: bool
     person_id: int | None = None
+    display_name: str | None = None
     confidence: float
