@@ -33,9 +33,19 @@ class InsightFaceRecognizer(FaceRecognizer):
             pil = Image.open(io.BytesIO(image)).convert("RGB")
         except Exception:
             return None
-        faces = self._app.get(np.asarray(pil))
+        # InsightFace is built on OpenCV and expects BGR; feeding RGB swaps the red/blue
+        # channels, which leaves the recognizer off-distribution and its embeddings
+        # unstable (near-orthogonal for the same face). Convert RGB→BGR first.
+        bgr = np.ascontiguousarray(np.asarray(pil)[:, :, ::-1])
+        faces = self._app.get(bgr)
         if not faces:
             return None
         # The most prominent face wins (largest bounding box).
         face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
-        return [float(x) for x in face.normed_embedding.tolist()]
+        # Use the raw embedding and L2-normalize ourselves so cosine matching is robust
+        # regardless of whether this insightface version pre-normalizes.
+        emb = np.asarray(face.embedding, dtype="float32")
+        norm = float(np.linalg.norm(emb))
+        if norm == 0.0:
+            return None
+        return [float(x) for x in (emb / norm)]

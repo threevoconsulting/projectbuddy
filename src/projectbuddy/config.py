@@ -57,8 +57,10 @@ class Settings(BaseSettings):
     # Face recognition (used only when recognition_backend == "insightface")
     insightface_model: str = "buffalo_l"
     insightface_device: str = "cpu"  # or "cuda"
-    # Cosine threshold for a confident match; conservative to avoid sibling mix-ups.
-    recognition_match_threshold: float = 0.6
+    # Cosine threshold for a confident match. ArcFace/buffalo_l same-person cosine is
+    # typically 0.5-0.7 and different-person 0.0-0.3, so 0.45 separates them well;
+    # raise it if siblings get confused, lower it if a known face isn't recognized.
+    recognition_match_threshold: float = 0.45
 
     # Data
     db_path: str = "buddy.db"
