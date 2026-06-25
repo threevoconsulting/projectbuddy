@@ -49,14 +49,38 @@ there, binds the conversation to their profile, and greets them out loud.
 - **Revoke = delete.** Revoking face consent (`POST /person/{id}/consent` with
   `granted:false`) removes the stored template immediately. `DELETE /person/{id}` still
   cascades to everything (verified by tests).
-- **Deferred:** optional **liveness** (Silent-Face MiniFASNet) to reject photo spoofs,
-  and a hardware **camera LED** to complement the on-screen indicator.
+## Liveness / anti-spoof (deferred from M8) — implemented
 
-## Parent companion app (M9)
+A `LivenessDetector` seam mirrors the recognizer: `models/liveness/{base,fake,minifasnet}.py`,
+selected by `PB_LIVENESS_BACKEND`. The default **fake is permissive** (any real frame passes),
+so CI/dev are unaffected; the real `minifasnet` adapter loads a Silent-Face MiniFASNet ONNX
+(Apache-2.0) from `PB_LIVENESS_MODEL` via onnxruntime (reuses the `perception` extra — no new
+dependency) and rejects frames below `PB_LIVENESS_THRESHOLD`. Both `enroll` and `recognize` call
+`liveness.check()` before embedding — a spoofed enroll returns 400, a spoofed recognize returns
+no-match. The real adapter **fails open** (logs once, allows the frame) on a model/inference error
+so a misconfig degrades to "no anti-spoof" rather than blocking enrollment.
 
-The six mockup screens — Welcome, Conversation, Sessions, Dashboard, Profile, Memory —
-built with the same vanilla front-end against the existing REST endpoints (the Memory
-screen is the `GET /person/{id}/facts` + per-fact delete surface).
+### Hardware camera LED — note (no code)
+The on-screen camera-active indicator (M7) is the cross-platform cue. A *physical* LED is a
+device-layer concern: capture happens in the browser and the server may run on the Mac, so there
+is no clean server-side hook. On the robot Pi, use a camera with a hardwired activity LED, or
+drive a GPIO LED from the kiosk process tied to the `getUserMedia` stream lifecycle.
+
+## Parent companion app (M9) — implemented
+
+A second vanilla SPA served at **`/parent`** (mounted in `app.py`), matching Buddy's design
+tokens. Six screens over the existing REST API:
+- **Welcome** — pick or add a child (`GET`/`POST /person`).
+- **Dashboard** — `GET /person/{id}/stats` (sessions, messages, facts, last seen, face status).
+- **Sessions** — `GET /person/{id}/sessions` → **Conversation** transcript via
+  `GET /session/{id}/messages`.
+- **Memory** — `GET /person/{id}/facts` + per-fact delete (`DELETE /person/{id}/facts/{fid}`):
+  the COPPA "what Buddy remembers" surface.
+- **Profile** — edit name/role (`PUT /person/{id}`), grant/revoke face consent, run retention,
+  delete child (`DELETE /person/{id}`).
+
+No auth (local LAN), consistent with the rest of the app; a `PB_PARENT_PIN` gate is a possible
+future hardening step.
 
 ## Path to the robot
 

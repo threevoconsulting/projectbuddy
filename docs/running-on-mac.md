@@ -41,7 +41,13 @@ candidates side by side with `uv run python scripts/compare_voices.py` — it wr
 per voice to `./voice-samples/` so you can listen and pick.
 
 Open the face full-screen at <http://localhost:8765/app/> and **hold the 🎤 button to
-talk** (push-to-talk); release and Buddy replies, expression first, then voice.
+talk** (push-to-talk); release and Buddy replies, expression first, then voice. The
+**parent app** is at <http://localhost:8765/parent/> (sessions, transcripts, memory,
+consent, delete).
+
+**Anti-spoof (optional):** set `PB_LIVENESS_BACKEND=minifasnet` and
+`PB_LIVENESS_MODEL=<path-to-minifasnet.onnx>` to reject printed-photo spoofs at enroll/
+recognize. Without it (default `fake`), liveness is permissive.
 
 > **Microphone access** needs a secure context: `localhost` works directly, but an iPad
 > pointed at the Mac over Wi-Fi (`http://<mac-ip>:8765/app/`) will not get mic permission

@@ -33,8 +33,13 @@ instruction, then falls back to a safe default
 | `POST` | `/session/end` | end a session; writes the medium-term summary |
 | `GET` | `/person` | list profiles |
 | `POST` | `/person` | create a profile |
+| `PUT` | `/person/{id}` | edit display name / role (parent app, M9) |
 | `DELETE` | `/person/{id}` | **forget** — cascade-delete all of a person's data |
 | `GET` | `/person/{id}/facts` | what Buddy remembers (parent transparency) |
+| `DELETE` | `/person/{id}/facts/{fact_id}` | delete one remembered fact (M9 Memory screen) |
+| `GET` | `/person/{id}/sessions` | list a person's sessions (M9) |
+| `GET` | `/person/{id}/stats` | dashboard counts: sessions/messages/facts/face status (M9) |
+| `GET` | `/session/{id}/messages` | full transcript of a session (M9 Conversation) |
 | `POST`/`GET` | `/person/{id}/consent` | grant/revoke · list parental consent (M7) |
 | `POST` | `/person/{id}/enroll` | enroll a face — base64 frames; **403** without consent (M7) |
 | `POST` | `/recognize` | match a base64 face frame against enrolled people (M7); returns `display_name` |

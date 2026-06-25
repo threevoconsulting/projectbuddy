@@ -59,6 +59,8 @@ make run             # http://127.0.0.1:8765  → face at /app/
 - **Face QA, no backend:** open <http://127.0.0.1:8765/app/?mock=1> to cycle all eight
   expressions with a simulated speaking mouth.
 - **Kiosk layout:** add `?kiosk=1` to hide the text controls.
+- **Parent app:** open <http://127.0.0.1:8765/parent/> — review each child's sessions,
+  transcripts, and remembered facts; manage face consent; delete data (the COPPA surface).
 
 ## Running the real stack (on a Mac)
 
