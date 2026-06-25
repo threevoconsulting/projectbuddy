@@ -9,6 +9,7 @@ order before the heuristic kicks in.
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 
 from projectbuddy.models.llm.base import ChatMessage
 from projectbuddy.protocol.llm_envelope import Emotion
@@ -71,6 +72,12 @@ class FakeLLMClient:
             "",
         )
         return _heuristic_reply(last_user)
+
+    async def chat_stream(
+        self, messages: list[ChatMessage], *, json: bool = True
+    ) -> AsyncIterator[str]:
+        # The fake has nothing to stream; emit the whole reply as one chunk.
+        yield await self.chat(messages, json=json)
 
     async def warmup(self) -> None:
         return None

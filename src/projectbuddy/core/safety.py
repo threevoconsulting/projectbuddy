@@ -36,7 +36,7 @@ _DENY_RE = re.compile(
     r"\b(?:" + "|".join(re.escape(t) for t in _ALL_TERMS) + r")s?\b", re.IGNORECASE
 )
 
-_SAFE_SUBSTITUTE = BuddyReply(
+SAFE_SUBSTITUTE = BuddyReply(
     emotion=Emotion.curious,
     say="Let's talk about something fun instead! What's your favorite animal?",
     remember=[],
@@ -58,7 +58,7 @@ def check(text: str) -> SafetyResult:
 def enforce(reply: BuddyReply) -> BuddyReply:
     """Block unsafe lines, then strip emoji so nothing odd gets read aloud."""
     if check(reply.say).blocked:
-        return _SAFE_SUBSTITUTE.model_copy(deep=True)
+        return SAFE_SUBSTITUTE.model_copy(deep=True)
     spoken = for_speech(reply.say) or "Okay!"
     if spoken != reply.say:
         return reply.model_copy(update={"say": spoken})

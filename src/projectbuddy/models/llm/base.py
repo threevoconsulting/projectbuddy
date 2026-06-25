@@ -7,6 +7,7 @@ orchestrator and parser depend on this Protocol, never on a concrete backend.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Protocol, TypedDict
 
 
@@ -22,6 +23,14 @@ class LLMClient(Protocol):
         When ``json`` is true the backend is asked to constrain output to a JSON
         object (Buddy's structured envelope). Validation happens in the parser,
         not here — this returns the raw string.
+        """
+        ...
+
+    def chat_stream(self, messages: list[ChatMessage], *, json: bool = True) -> AsyncIterator[str]:
+        """Yield content deltas as they are generated, for low-latency speaking.
+
+        The orchestrator pulls the ``say`` line out sentence-by-sentence and starts
+        TTS before the whole envelope is finished.
         """
         ...
 

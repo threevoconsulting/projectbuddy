@@ -16,7 +16,10 @@ import logging
 from collections.abc import AsyncIterator
 
 from projectbuddy.core import safety
-from projectbuddy.core.output_parser import parse_reply
+from projectbuddy.core.output_parser import lenient_parse, parse_reply
+from projectbuddy.core.safety import SAFE_SUBSTITUTE
+from projectbuddy.core.streaming import SentenceStreamer
+from projectbuddy.core.text import for_speech
 from projectbuddy.db.repositories import Person, SessionRow
 from projectbuddy.deps import Container
 from projectbuddy.models.llm.base import ChatMessage
@@ -50,6 +53,13 @@ async def safe_reply(c: Container, messages: list[ChatMessage]) -> BuddyReply:
     return safety.enforce(reply)
 
 
+def _coerce_emotion(name: str | None) -> Emotion:
+    try:
+        return Emotion(name) if name else Emotion.happy
+    except ValueError:
+        return Emotion.happy
+
+
 def resolve_session(c: Container, session_id: int | None) -> tuple[Person, SessionRow] | None:
     """Resolve (or start) the session for a turn.
 
@@ -73,21 +83,80 @@ def resolve_session(c: Container, session_id: int | None) -> tuple[Person, Sessi
 async def run_turn(
     c: Container, *, person: Person, session: SessionRow, transcript: str
 ) -> AsyncIterator[ServerFrame]:
-    """Drive one turn from a transcript, yielding frames in protocol order."""
-    yield StateFrame(value="thinking")
+    """Drive one turn, streaming the brain so Buddy starts speaking the first sentence
+    while the rest is still being generated (lower time-to-first-sound).
 
+    Order is unchanged (the face still leads): thinking → emotion → speaking → audio… →
+    final. Each sentence is safety-checked and emoji-stripped before it is spoken; the
+    full envelope is parsed at the end for memory + the final transcript. Any streaming
+    error falls back to the non-streaming :func:`safe_reply` path.
+    """
+    yield StateFrame(value="thinking")
     messages = c.memory.build_context(
         person_id=person.id, session_id=session.id, child_text=transcript
     )
-    reply = await safe_reply(c, messages)
 
-    # Face leads the voice: emotion before any audio. The `speaking` state then
-    # tells the client the reply is on its way (so the face leaves `thinking` even
-    # before the first audio chunk arrives), while the emotion already set the mood.
-    yield EmotionFrame(value=reply.emotion)
-    yield StateFrame(value="speaking")
-    async for chunk in c.tts.synthesize(reply.say):
-        yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
+    streamer = SentenceStreamer()
+    emotion_sent = False
+    speaking_sent = False
+    spoke_any = False
+    blocked = False
+
+    try:
+        async for delta in c.llm.chat_stream(messages, json=True):
+            emo, flushed = streamer.feed(delta)
+            if emo and not emotion_sent:
+                emotion_sent = True
+                yield EmotionFrame(value=_coerce_emotion(emo))
+            if not flushed or blocked:
+                continue
+            if safety.check(flushed).blocked:
+                blocked = True
+                spoken = SAFE_SUBSTITUTE.say  # speak a safe line instead of the bad one
+            else:
+                spoken = for_speech(flushed)
+            if spoken:
+                if not emotion_sent:
+                    emotion_sent = True
+                    yield EmotionFrame(value=Emotion.happy)  # face leads even if emotion is late
+                if not speaking_sent:
+                    speaking_sent = True
+                    yield StateFrame(value="speaking")
+                async for chunk in c.tts.synthesize(spoken):
+                    yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
+                spoke_any = True
+            if blocked:
+                break
+    except Exception as exc:  # streaming/transport error → fall back below
+        _log.warning("stream error, falling back: %r", exc)
+
+    # Authoritative reply for memory + final transcript.
+    if blocked:
+        reply = SAFE_SUBSTITUTE.model_copy(deep=True)
+    else:
+        parsed = lenient_parse(streamer.raw) if streamer.raw.strip() else None
+        if parsed is not None:
+            reply = safety.enforce(parsed)
+        else:
+            say_value = streamer.say_value().strip()
+            if say_value:
+                reply = safety.enforce(
+                    BuddyReply(emotion=_coerce_emotion(streamer.emotion), say=say_value)
+                )
+            else:
+                reply = await safe_reply(c, messages)  # stream gave nothing usable
+
+    if not spoke_any:
+        # Nothing was streamed/spoken — speak the fallback reply now.
+        if not emotion_sent:
+            emotion_sent = True
+            yield EmotionFrame(value=reply.emotion)
+        if not speaking_sent:
+            yield StateFrame(value="speaking")
+        async for chunk in c.tts.synthesize(reply.say):
+            yield AudioFrame(chunk=base64.b64encode(chunk).decode("ascii"))
+    elif not emotion_sent:  # safety net — should not happen
+        yield EmotionFrame(value=reply.emotion)
 
     yield FinalFrame(transcript=transcript, say=reply.say)
 
