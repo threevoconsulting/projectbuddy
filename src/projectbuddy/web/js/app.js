@@ -205,19 +205,33 @@ async function startCamtest() {
     'border:none;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;' +
     'color:#fff;background:#22c55e;cursor:pointer;z-index:10;';
   enrollBtn.addEventListener('click', async () => {
-    const image = grabFrame();
-    if (!image) return;
+    if (!grabFrame()) return;
     const name = prompt("Whose face is this?", 'Me');
     if (!name) return;
     busy = true;
     enrollBtn.disabled = true;
+    // Capture several frames a fraction of a second apart so the backend can average
+    // them (and log cross-frame consistency for the same face).
+    caption.textContent = `Capturing ${name}…`;
+    const images = [];
+    for (let i = 0; i < 3; i++) {
+      const f = grabFrame();
+      if (f) images.push(f);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    if (!images.length) {
+      caption.textContent = 'No frame captured — try again.';
+      enrollBtn.disabled = false;
+      busy = false;
+      return;
+    }
     caption.textContent = `Enrolling ${name}…`;
     try {
       const person = await postJSON('/person', { display_name: name, role: 'child' }).then((r) =>
         r.json()
       );
       await postJSON(`/person/${person.id}/consent`, { scope: 'face', granted: true });
-      const res = await postJSON(`/person/${person.id}/enroll`, { images: [image] });
+      const res = await postJSON(`/person/${person.id}/enroll`, { images });
       if (res.status === 400) {
         caption.textContent = 'I couldn’t find a face in that frame — try again, well-lit and centered.';
       } else if (!res.ok) {

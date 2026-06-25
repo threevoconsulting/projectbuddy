@@ -101,19 +101,17 @@ async def enroll_face(
     if not c.consents.has_consent(person_id, _FACE):
         raise HTTPException(status_code=403, detail="face consent required")
 
-    # Determinism probe: embed the first frame twice. If this self-cosine is ~1.0 the
-    # embedding is stable (any match failure is alignment/threshold); if it's ~0 the
-    # recognizer itself is non-deterministic/broken.
-    a = await c.recognition.embed(_decode(body.images[0]))
-    b = await c.recognition.embed(_decode(body.images[0]))
-    if a is not None and b is not None:
-        _log.info("determinism self-cosine = %.4f", cosine(a, b))
-
     vectors: list[list[float]] = []
     for image_b64 in body.images:
         vector = await c.recognition.embed(_decode(image_b64))
         if vector is not None:
             vectors.append(vector)
+
+    # Diagnostic: cosine between the different captured frames of the SAME face. ~0.6+
+    # means the recognizer discriminates identity (good); ~0 means it does not.
+    for i in range(len(vectors)):
+        for j in range(i + 1, len(vectors)):
+            _log.info("enroll cross-frame cosine[%d,%d] = %.4f", i, j, cosine(vectors[i], vectors[j]))
     _log.info("enroll person=%s faces=%d/%d", person_id, len(vectors), len(body.images))
     if not vectors:
         raise HTTPException(status_code=400, detail="no face detected")
