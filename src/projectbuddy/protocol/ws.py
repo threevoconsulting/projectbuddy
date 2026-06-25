@@ -1,4 +1,13 @@
-"""WebSocket frame models for ``/ws/converse`` (wired fully in M4).
+"""WebSocket frame models for ``/ws/converse``.
+
+Client → server (push-to-talk): an optional ``start`` to begin/continue a session,
+then ``audio`` chunks while the mic is open, then ``end`` to close the utterance and
+trigger a turn::
+
+    {"type": "start", "session_id": 7}           # optional; omit for a new session
+    {"type": "audio", "chunk": "<base64 pcm>"}    # 16 kHz mono 16-bit PCM
+    ...
+    {"type": "end"}
 
 Server → client during one turn, in this order (the face leads the voice)::
 
@@ -9,8 +18,8 @@ Server → client during one turn, in this order (the face leads the voice)::
     ...
     {"type": "final",   "transcript": "...", "say": "..."}
 
-Defined here in M2 so the contract is stable and testable before the audio
-pipeline lands.
+The server frames were defined in M2 so the contract was stable and testable before
+the audio pipeline landed; the client frames and handler arrived in M4.
 """
 
 from __future__ import annotations
@@ -46,3 +55,21 @@ class FinalFrame(BaseModel):
 
 
 ServerFrame = StateFrame | EmotionFrame | AudioFrame | FinalFrame
+
+
+# --- Client → server frames ---
+class StartFrame(BaseModel):
+    type: Literal["start"] = "start"
+    session_id: int | None = None
+
+
+class ClientAudioFrame(BaseModel):
+    type: Literal["audio"] = "audio"
+    chunk: str  # base64-encoded 16 kHz mono 16-bit PCM
+
+
+class EndFrame(BaseModel):
+    type: Literal["end"] = "end"
+
+
+ClientFrame = StartFrame | ClientAudioFrame | EndFrame

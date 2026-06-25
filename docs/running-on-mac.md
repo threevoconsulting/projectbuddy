@@ -31,11 +31,17 @@ latency and memory.
 ## 3. Run
 
 ```bash
-./scripts/run_mac.sh       # PB_LLM_BACKEND=ollama (+ STT/TTS in M4)
+export PB_PIPER_VOICE_PATH=./models/piper/en_US-amy-medium.onnx   # from pull_models.sh
+./scripts/run_mac.sh       # PB_LLM_BACKEND=ollama, STT=faster_whisper, TTS=piper
 ```
 
-Open the face full-screen at <http://localhost:8000/app/>, or point an iPad at the Mac
-over Wi-Fi as a PWA (`http://<mac-ip>:8000/app/`) for the "device on the desk" feel.
+Open the face full-screen at <http://localhost:8000/app/> and **hold the 🎤 button to
+talk** (push-to-talk); release and Buddy replies, expression first, then voice.
+
+> **Microphone access** needs a secure context: `localhost` works directly, but an iPad
+> pointed at the Mac over Wi-Fi (`http://<mac-ip>:8000/app/`) will not get mic permission
+> over plain HTTP — front it with HTTPS (e.g. a local reverse proxy) for the tablet
+> "device on the desk" demo. The text box works everywhere as a fallback.
 
 ## 4. Smoke-test (M4+)
 

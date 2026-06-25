@@ -48,7 +48,8 @@
     <div id="caption"></div>
 
     <div id="controls">
-      <input id="text-input" type="text" placeholder="Say something to Buddy…" autocomplete="off" />
+      <button id="talk-btn" title="Hold to talk to Buddy">🎤 Hold to talk</button>
+      <input id="text-input" type="text" placeholder="…or type to Buddy" autocomplete="off" />
       <button id="send-btn">Send</button>
       <button id="mock-btn" title="Cycle all expressions">Mock</button>
     </div>
@@ -56,6 +57,8 @@
 
   <script src="/app/js/face.js"></script>
   <script src="/app/js/state.js"></script>
+  <script src="/app/js/audio.js"></script>
+  <script src="/app/js/ws-client.js"></script>
   <script src="/app/js/app.js"></script>
 </body>
 </html>

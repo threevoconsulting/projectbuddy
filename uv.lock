@@ -921,6 +921,8 @@ dependencies = [
 [package.optional-dependencies]
 mac = [
     { name = "faster-whisper" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "piper-tts" },
     { name = "webrtcvad" },
 ]
@@ -945,6 +947,7 @@ requires-dist = [
     { name = "faster-whisper", marker = "extra == 'mac'", specifier = ">=1.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "inspireface", marker = "extra == 'perception'", specifier = ">=1.0" },
+    { name = "numpy", marker = "extra == 'mac'", specifier = ">=1.26" },
     { name = "numpy", marker = "extra == 'perception'", specifier = ">=1.26" },
     { name = "piper-tts", marker = "extra == 'mac'", specifier = ">=1.2" },
     { name = "pydantic", specifier = ">=2.9" },

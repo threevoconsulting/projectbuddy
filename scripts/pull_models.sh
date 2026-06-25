@@ -12,9 +12,23 @@ else
   echo "   ollama not found — install from https://ollama.com and re-run." >&2
 fi
 
+echo "==> Piper voice (TTS)"
+VOICE_DIR="${PB_VOICE_DIR:-./models/piper}"
+VOICE="${PB_PIPER_VOICE:-en_US-amy-medium}"
+BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium"
+mkdir -p "$VOICE_DIR"
+if command -v curl >/dev/null 2>&1; then
+  curl -L -o "$VOICE_DIR/$VOICE.onnx"      "$BASE/$VOICE.onnx"      || true
+  curl -L -o "$VOICE_DIR/$VOICE.onnx.json" "$BASE/$VOICE.onnx.json" || true
+  echo "   Voice at $VOICE_DIR/$VOICE.onnx"
+  echo "   Set: export PB_PIPER_VOICE_PATH=$VOICE_DIR/$VOICE.onnx"
+else
+  echo "   curl not found — download a Piper voice manually from $BASE" >&2
+fi
+
 cat <<'NOTE'
 
-==> Piper (TTS) and Whisper (STT) assets are downloaded by their Python packages
-    on first use, or place voice files under ./models/. See docs/running-on-mac.md
-    for the recommended Piper voice and faster-whisper model size.
+==> faster-whisper (STT) model weights download automatically on first use
+    (cached under ~/.cache/huggingface). Pick the size with PB_WHISPER_MODEL
+    (tiny|base|small). See docs/running-on-mac.md.
 NOTE

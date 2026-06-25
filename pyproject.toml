@@ -22,6 +22,7 @@ mac = [
     "faster-whisper>=1.0",
     "piper-tts>=1.2",
     "webrtcvad>=2.0.10",
+    "numpy>=1.26",
 ]
 # Phase 2 face recognition. InspireFace is the commercial-licensable path —
 # do NOT depend on InsightFace pretrained packs (non-commercial).
@@ -70,7 +71,7 @@ warn_unused_ignores = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["faster_whisper.*", "piper.*", "webrtcvad.*", "inspireface.*"]
+module = ["faster_whisper.*", "piper.*", "webrtcvad.*", "inspireface.*", "numpy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

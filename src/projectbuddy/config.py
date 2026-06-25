@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3:8b"
     llm_num_ctx: int = 4096
 
+    # faster-whisper STT (used only when stt_backend == "faster_whisper")
+    whisper_model: str = "base"  # tiny | base | small (latency/accuracy trade-off)
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
+    whisper_language: str = "en"
+
+    # Piper TTS (used only when tts_backend == "piper")
+    piper_binary: str = "piper"
+    piper_voice_path: str = ""  # path to a downloaded .onnx voice; see pull_models.sh
+
     # Data
     db_path: str = "buddy.db"
 

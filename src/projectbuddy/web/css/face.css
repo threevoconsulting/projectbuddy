@@ -101,6 +101,14 @@ body.kiosk #controls { display: none; }
   padding: 10px 16px; border-radius: 10px;
 }
 #mock-btn { background: rgba(255,255,255,0.12); }
+#talk-btn {
+  border: none; cursor: pointer;
+  font-family: inherit; font-weight: 800; font-size: 14px;
+  color: #fff; background: #22c55e;
+  padding: 10px 16px; border-radius: 10px;
+  touch-action: none; user-select: none;
+}
+#talk-btn.active { background: #ff6b6b; box-shadow: 0 0 0 4px rgba(255,107,107,0.3); }
 
 /* --- Motion (from the mockup) --- */
 @keyframes buddyBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }

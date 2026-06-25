@@ -30,11 +30,14 @@ src/projectbuddy/
   app.py            FastAPI factory (+ /health, mounts the face at /app/)
   config.py deps.py settings + adapter wiring (fake ↔ real by env var)
   protocol/         the contracts: llm_envelope (emotion/say/remember), ws, rest
-  api/              converse-text, person, session  (ws_converse, perception → later)
+  api/              converse-text, person, session, ws_converse  (perception → later)
+  orchestrator/     turn.py — one turn as a stream of frames (text + voice share it)
   core/             output_parser, safety, memory
   db/               schema migrations, engine, repositories
   models/llm/       LLMClient Protocol + fake + ollama
-  web/              the face (index.html, css, js/face.js, PWA)
+  models/stt/       STTEngine Protocol + fake + faster_whisper
+  models/tts/       TTSEngine Protocol + fake + piper
+  web/              the face (index.html, css, js/face.js, audio, ws-client, PWA)
 tests/              unit · contract · integration  (all on fakes)
 ```
 
@@ -48,8 +51,11 @@ make lint && make types && make test
 make run             # http://127.0.0.1:8000  → face at /app/
 ```
 
-- **Talk to Buddy (text):** open <http://127.0.0.1:8000/app/> and type. The faked brain
-  replies with an emotion + line, and the face reacts.
+- **Talk to Buddy (voice):** open <http://127.0.0.1:8000/app/> and **hold 🎤 to talk**
+  (push-to-talk over `WS /ws/converse`). On the faked stack STT/TTS are stand-ins — the
+  loop, frame ordering, and face animation are real; a real voice needs the Mac stack.
+- **Talk to Buddy (text):** type in the same screen — the faked brain replies with an
+  emotion + line and the face reacts.
 - **Face QA, no backend:** open <http://127.0.0.1:8000/app/?mock=1> to cycle all eight
   expressions with a simulated speaking mouth.
 - **Kiosk layout:** add `?kiosk=1` to hide the text controls.
@@ -62,8 +68,8 @@ uv sync --extra mac
 ./scripts/run_mac.sh          # PB_LLM_BACKEND=ollama, etc.
 ```
 
-See [`docs/running-on-mac.md`](docs/running-on-mac.md). Voice in/out (Whisper + Piper)
-lands in milestone M4; today the Mac runs the real **LLM** text loop.
+See [`docs/running-on-mac.md`](docs/running-on-mac.md). The Mac runs the real **LLM**
+(Ollama) plus **voice** — Whisper STT + Piper TTS over `WS /ws/converse`.
 
 ## Make targets
 

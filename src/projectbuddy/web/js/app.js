@@ -116,6 +116,29 @@ if (params.get('mock') === '1') {
   mockBtn.addEventListener('click', () => {
     location.search = '?mock=1';
   });
+
+  // --- Voice (M4): hold the mic button to talk; release to let Buddy reply. ---
+  const talkBtn = document.getElementById('talk-btn');
+  const voice = window.BuddyWS.connect(buddy, {
+    onCaption: (say) => {
+      caption.textContent = say;
+    },
+  });
+  const press = (e) => {
+    e.preventDefault();
+    talkBtn.classList.add('active');
+    caption.textContent = "I'm listening…";
+    voice.startTalking();
+  };
+  const release = (e) => {
+    e.preventDefault();
+    talkBtn.classList.remove('active');
+    voice.stopTalking();
+  };
+  talkBtn.addEventListener('pointerdown', press);
+  talkBtn.addEventListener('pointerup', release);
+  talkBtn.addEventListener('pointerleave', release);
+  talkBtn.addEventListener('pointercancel', release);
 }
 
 // Register the PWA service worker (offline kiosk shell).
