@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"  # small & fast; bump to qwen3:8b / gemma3 for quality
     llm_num_ctx: int = 2048  # smaller window = faster prompt processing; replies are tiny
-    llm_num_predict: int = 128  # cap generation — Buddy says 1-3 short sentences
+    llm_num_predict: int = 200  # cap generation (format:json stops earlier on short replies)
     llm_keep_alive: str = "30m"  # keep the model resident between turns (no reload latency)
 
     # faster-whisper STT (used only when stt_backend == "faster_whisper")
