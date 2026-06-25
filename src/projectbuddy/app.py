@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from projectbuddy import __version__
-from projectbuddy.api import converse, person, session, ws_converse
+from projectbuddy.api import converse, person, recognition, session, ws_converse
 from projectbuddy.config import Settings, get_settings
 from projectbuddy.deps import Container
 from projectbuddy.protocol.rest import HealthResponse
@@ -51,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(person.router)
     app.include_router(session.router)
     app.include_router(ws_converse.router)  # WS /ws/converse — the realtime voice loop
+    app.include_router(recognition.router)  # M7: face recognition + parental consent
 
     # The face (vanilla web UI / PWA). Same artifact runs in a Pi Chromium kiosk.
     app.mount("/app", StaticFiles(directory=_WEB_DIR, html=True), name="web")

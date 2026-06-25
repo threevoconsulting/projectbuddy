@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LLMBackend = Literal["fake", "ollama"]
 STTBackend = Literal["fake", "faster_whisper"]
 TTSBackend = Literal["fake", "piper", "kokoro"]
+RecognitionBackend = Literal["fake", "insightface"]
 
 
 class Settings(BaseSettings):
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     llm_backend: LLMBackend = "fake"
     stt_backend: STTBackend = "fake"
     tts_backend: TTSBackend = "fake"
+    recognition_backend: RecognitionBackend = "fake"
 
     # Ollama (used only when llm_backend == "ollama")
     ollama_url: str = "http://localhost:11434"
@@ -51,6 +53,12 @@ class Settings(BaseSettings):
     # Kokoro TTS (used only when tts_backend == "kokoro")
     kokoro_voice: str = "af_heart"
     kokoro_lang: str = "a"  # 'a' = American English
+
+    # Face recognition (used only when recognition_backend == "insightface")
+    insightface_model: str = "buffalo_l"
+    insightface_device: str = "cpu"  # or "cuda"
+    # Cosine threshold for a confident match; conservative to avoid sibling mix-ups.
+    recognition_match_threshold: float = 0.6
 
     # Data
     db_path: str = "buddy.db"

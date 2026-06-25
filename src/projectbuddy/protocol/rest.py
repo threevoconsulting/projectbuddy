@@ -63,3 +63,45 @@ class SessionEndRequest(BaseModel):
 class SessionEndResponse(BaseModel):
     session_id: int
     summary: str | None = None
+
+
+# --- Perception (M7): face recognition + parental consent ---
+# Images travel as base64 strings in JSON (no python-multipart dependency, and the
+# capture UI in M9 will send frames the same way). Images are embedded in memory and
+# discarded — they are never written to disk.
+class ConsentSet(BaseModel):
+    scope: str = Field(default="face", max_length=40)
+    granted: bool
+    granted_by: str | None = Field(default=None, max_length=200)
+    retention_until: str | None = Field(default=None, max_length=40)
+    notes: str | None = Field(default=None, max_length=400)
+
+
+class ConsentOut(BaseModel):
+    person_id: int
+    scope: str
+    granted: bool
+    granted_at: str | None = None
+    granted_by: str | None = None
+    retention_until: str | None = None
+
+
+class EnrollRequest(BaseModel):
+    # One or more base64-encoded capture frames, averaged into one stored embedding.
+    images: list[str] = Field(min_length=1, max_length=20)
+
+
+class EnrollResponse(BaseModel):
+    person_id: int
+    frames: int
+    vector_size: int
+
+
+class RecognizeRequest(BaseModel):
+    image: str  # base64-encoded image
+
+
+class RecognizeResponse(BaseModel):
+    matched: bool
+    person_id: int | None = None
+    confidence: float

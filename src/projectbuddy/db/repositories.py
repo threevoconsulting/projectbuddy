@@ -7,6 +7,7 @@ person") in one obvious spot.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 
@@ -48,6 +49,29 @@ class MessageRow:
     text: str
     emotion: str | None
     created_at: str
+
+
+@dataclass(frozen=True)
+class FaceEmbeddingRow:
+    id: int
+    person_id: int
+    vector: list[float]
+    frames: int
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class ConsentRow:
+    id: int
+    person_id: int
+    scope: str
+    granted: bool
+    granted_at: str | None
+    granted_by: str | None
+    retention_until: str | None
+    notes: str | None
+    updated_at: str
 
 
 class PersonRepo:
@@ -166,6 +190,93 @@ class MessageRepo:
         return [_to_message(r) for r in rows]
 
 
+class FaceEmbeddingRepo:
+    """One averaged face embedding per person (M7). Vectors are JSON-encoded."""
+
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    def upsert(self, person_id: int, vector: list[float], frames: int = 1) -> FaceEmbeddingRow:
+        self._db.execute(
+            "INSERT INTO face_embedding(person_id, vector, frames) VALUES (?, ?, ?) "
+            "ON CONFLICT(person_id) DO UPDATE SET "
+            "vector = excluded.vector, frames = excluded.frames, "
+            "updated_at = datetime('now')",
+            (person_id, json.dumps(vector), frames),
+        )
+        row = self.get(person_id)
+        assert row is not None
+        return row
+
+    def get(self, person_id: int) -> FaceEmbeddingRow | None:
+        row = self._db.query_one("SELECT * FROM face_embedding WHERE person_id = ?", (person_id,))
+        return _to_face_embedding(row) if row else None
+
+    def list_all(self) -> list[FaceEmbeddingRow]:
+        rows = self._db.query_all("SELECT * FROM face_embedding ORDER BY person_id")
+        return [_to_face_embedding(r) for r in rows]
+
+    def delete(self, person_id: int) -> bool:
+        cur = self._db.execute("DELETE FROM face_embedding WHERE person_id = ?", (person_id,))
+        return cur.rowcount > 0
+
+
+class ConsentRepo:
+    """Parental consent per (person, scope). 'grant'/'revoke' keep an auditable row."""
+
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    def grant(
+        self,
+        person_id: int,
+        scope: str,
+        *,
+        granted_by: str | None = None,
+        retention_until: str | None = None,
+        notes: str | None = None,
+    ) -> ConsentRow:
+        self._db.execute(
+            "INSERT INTO consent(person_id, scope, granted, granted_at, granted_by, "
+            "retention_until, notes) VALUES (?, ?, 1, datetime('now'), ?, ?, ?) "
+            "ON CONFLICT(person_id, scope) DO UPDATE SET "
+            "granted = 1, granted_at = datetime('now'), granted_by = excluded.granted_by, "
+            "retention_until = excluded.retention_until, notes = excluded.notes, "
+            "updated_at = datetime('now')",
+            (person_id, scope, granted_by, retention_until, notes),
+        )
+        row = self.get(person_id, scope)
+        assert row is not None
+        return row
+
+    def revoke(self, person_id: int, scope: str) -> None:
+        self._db.execute(
+            "INSERT INTO consent(person_id, scope, granted, granted_at) VALUES (?, ?, 0, NULL) "
+            "ON CONFLICT(person_id, scope) DO UPDATE SET "
+            "granted = 0, granted_at = NULL, updated_at = datetime('now')",
+            (person_id, scope),
+        )
+
+    def has_consent(self, person_id: int, scope: str) -> bool:
+        row = self._db.query_one(
+            "SELECT granted FROM consent WHERE person_id = ? AND scope = ?",
+            (person_id, scope),
+        )
+        return row is not None and bool(row["granted"])
+
+    def get(self, person_id: int, scope: str) -> ConsentRow | None:
+        row = self._db.query_one(
+            "SELECT * FROM consent WHERE person_id = ? AND scope = ?", (person_id, scope)
+        )
+        return _to_consent(row) if row else None
+
+    def list_by_person(self, person_id: int) -> list[ConsentRow]:
+        rows = self._db.query_all(
+            "SELECT * FROM consent WHERE person_id = ? ORDER BY scope", (person_id,)
+        )
+        return [_to_consent(r) for r in rows]
+
+
 def _to_person(r: sqlite3.Row) -> Person:
     return Person(
         id=r["id"],
@@ -204,4 +315,29 @@ def _to_message(r: sqlite3.Row) -> MessageRow:
         text=r["text"],
         emotion=r["emotion"],
         created_at=r["created_at"],
+    )
+
+
+def _to_face_embedding(r: sqlite3.Row) -> FaceEmbeddingRow:
+    return FaceEmbeddingRow(
+        id=r["id"],
+        person_id=r["person_id"],
+        vector=json.loads(r["vector"]),
+        frames=r["frames"],
+        created_at=r["created_at"],
+        updated_at=r["updated_at"],
+    )
+
+
+def _to_consent(r: sqlite3.Row) -> ConsentRow:
+    return ConsentRow(
+        id=r["id"],
+        person_id=r["person_id"],
+        scope=r["scope"],
+        granted=bool(r["granted"]),
+        granted_at=r["granted_at"],
+        granted_by=r["granted_by"],
+        retention_until=r["retention_until"],
+        notes=r["notes"],
+        updated_at=r["updated_at"],
     )

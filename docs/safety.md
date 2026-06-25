@@ -28,9 +28,10 @@ safe, zero unsafe outputs** (BRD KPI). Expand the corpus as new risks are found.
 - **Deletion is first-class** — `DELETE /person/{id}` cascades to all of a person's data.
 - **Transparency** — `GET /person/{id}/facts` shows exactly what Buddy remembers (COPPA
   access).
-- **Phase 2** — biometric capture is gated behind verifiable parental **consent**; only
-  face **templates** are stored (never images); a **retention** job enforces deletion
-  windows; a camera-active indicator satisfies notice. See
+- **Phase 2** — biometric enrollment is gated behind a parental **consent** row (M7:
+  `POST /person/{id}/enroll` returns 403 without it); only face **templates** are stored —
+  images are embedded in memory and never written to disk; a camera-active indicator
+  satisfies notice (M7). A **retention** job (M8) will enforce deletion windows. See
   [`phase2-perception.md`](phase2-perception.md).
 
 This is a **home-use** project, so the children's-privacy legal regime (COPPA, US state

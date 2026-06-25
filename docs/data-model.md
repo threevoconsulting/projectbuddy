@@ -17,8 +17,18 @@ access goes through [`repositories.py`](../src/projectbuddy/db/repositories.py).
 person" is a single-row delete** that removes their facts, sessions, and messages. WAL
 mode is enabled for on-disk databases.
 
-Phase 2 adds `face_embedding` (templates, never images) and `consent` (consent +
-retention audit). See [`phase2-perception.md`](phase2-perception.md).
+## Phase 2 tables (M7)
+
+Added by [`0002_perception.sql`](../src/projectbuddy/db/migrations/0002_perception.sql),
+both cascade-deleted with their person:
+
+| table | purpose |
+|---|---|
+| `face_embedding` | one averaged face **template** per person (`vector` = JSON `list[float]`, length 512; `frames` = captures averaged). Never stores images. `UNIQUE(person_id)`. |
+| `consent` | parental consent per `(person_id, scope)` — `granted` flag, `granted_by`, and `retention_until` (reserved for the M8 retention job). `UNIQUE(person_id, scope)`. |
+
+Enrollment writes a `face_embedding` row only when a granted `consent` row for scope
+`face` exists. See [`phase2-perception.md`](phase2-perception.md).
 
 ## The three memory tiers
 

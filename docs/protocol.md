@@ -35,7 +35,9 @@ instruction, then falls back to a safe default
 | `POST` | `/person` | create a profile |
 | `DELETE` | `/person/{id}` | **forget** — cascade-delete all of a person's data |
 | `GET` | `/person/{id}/facts` | what Buddy remembers (parent transparency) |
-| `POST` | `/enroll` · `/recognize` · `/consent` | Phase 2 |
+| `POST`/`GET` | `/person/{id}/consent` | grant/revoke · list parental consent (M7) |
+| `POST` | `/person/{id}/enroll` | enroll a face — base64 frames; **403** without consent (M7) |
+| `POST` | `/recognize` | match a base64 face frame against enrolled people (M7) |
 
 ## WebSocket `/ws/converse`
 

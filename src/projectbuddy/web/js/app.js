@@ -165,8 +165,53 @@ function startMock() {
   })();
 }
 
+// --- Camera test (M7, ?camtest=1): a dev affordance to exercise /recognize and the
+//     camera-active indicator. Grabs a frame every couple of seconds and asks the
+//     backend who it sees. The full enrollment/parent capture UI lands in M9. ---
+async function startCamtest() {
+  document.body.classList.add('kiosk');
+  caption.textContent = 'Camera test — point at a face.';
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  const canvas = document.createElement('canvas');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    window.BuddyCamera.show();
+    video.srcObject = stream;
+    await video.play();
+  } catch (_) {
+    caption.textContent = 'No camera available for the test.';
+    return;
+  }
+  setInterval(async () => {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    const image = canvas.toDataURL('image/jpeg').split(',')[1];
+    try {
+      const resp = await fetch('/recognize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image }),
+      });
+      const r = await resp.json();
+      caption.textContent = r.matched
+        ? `I see person #${r.person_id} (${r.confidence.toFixed(2)})`
+        : "I don't recognize anyone yet.";
+    } catch (_) {
+      /* keep trying on the next tick */
+    }
+  }, 2000);
+}
+
 if (params.get('mock') === '1') {
   startMock();
+} else if (params.get('camtest') === '1') {
+  startCamtest();
 } else {
   startBehaviours();
   if (KIOSK) setupKiosk();

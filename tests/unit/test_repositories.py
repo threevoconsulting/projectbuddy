@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from projectbuddy.db.engine import Database
-from projectbuddy.db.repositories import FactRepo, MessageRepo, PersonRepo, SessionRepo
+from projectbuddy.db.repositories import (
+    ConsentRepo,
+    FaceEmbeddingRepo,
+    FactRepo,
+    MessageRepo,
+    PersonRepo,
+    SessionRepo,
+)
 
 
 def test_person_crud(db: Database) -> None:
@@ -59,3 +66,45 @@ def test_message_recent_returns_chronological_tail(db: Database) -> None:
         messages.add(s.id, "child", f"msg{i}")
     recent = messages.recent(s.id, 3)
     assert [m.text for m in recent] == ["msg2", "msg3", "msg4"]
+
+
+# --- M7: face embeddings + consent ---
+def test_face_embedding_upsert_roundtrips_and_dedupes(db: Database) -> None:
+    persons, embeddings = PersonRepo(db), FaceEmbeddingRepo(db)
+    p = persons.create("Emma")
+    embeddings.upsert(p.id, [0.1, 0.2, 0.3], frames=3)
+    embeddings.upsert(p.id, [0.4, 0.5, 0.6], frames=5)  # one row per person → update
+    rows = embeddings.list_all()
+    assert len(rows) == 1
+    assert rows[0].vector == [0.4, 0.5, 0.6]  # JSON round-trips the floats
+    assert rows[0].frames == 5
+
+
+def test_consent_grant_and_revoke(db: Database) -> None:
+    persons, consents = PersonRepo(db), ConsentRepo(db)
+    p = persons.create("Emma")
+    assert consents.has_consent(p.id, "face") is False
+    consents.grant(p.id, "face", granted_by="parent@example.com")
+    assert consents.has_consent(p.id, "face") is True
+    row = consents.get(p.id, "face")
+    assert row is not None and row.granted_by == "parent@example.com"
+    consents.revoke(p.id, "face")
+    assert consents.has_consent(p.id, "face") is False
+    # Revoke keeps an auditable row rather than deleting it.
+    assert consents.get(p.id, "face") is not None
+
+
+def test_delete_person_cascades_to_face_and_consent(db: Database) -> None:
+    persons = PersonRepo(db)
+    embeddings = FaceEmbeddingRepo(db)
+    consents = ConsentRepo(db)
+
+    p = persons.create("Emma")
+    embeddings.upsert(p.id, [0.1, 0.2])
+    consents.grant(p.id, "face", granted_by="parent@example.com")
+
+    assert persons.delete(p.id) is True
+
+    # "Forget" removes the face embedding and consent too — no orphan rows.
+    assert embeddings.get(p.id) is None
+    assert consents.get(p.id, "face") is None

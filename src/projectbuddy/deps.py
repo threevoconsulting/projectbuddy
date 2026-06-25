@@ -14,8 +14,16 @@ from fastapi import Request
 from projectbuddy.config import Settings
 from projectbuddy.core.memory import MemoryManager
 from projectbuddy.db.engine import Database
-from projectbuddy.db.repositories import FactRepo, MessageRepo, PersonRepo, SessionRepo
+from projectbuddy.db.repositories import (
+    ConsentRepo,
+    FaceEmbeddingRepo,
+    FactRepo,
+    MessageRepo,
+    PersonRepo,
+    SessionRepo,
+)
 from projectbuddy.models.llm.base import LLMClient
+from projectbuddy.models.recognition.base import FaceRecognizer
 from projectbuddy.models.stt.base import STTEngine
 from projectbuddy.models.tts.base import TTSEngine
 
@@ -69,6 +77,19 @@ def _build_tts(settings: Settings) -> TTSEngine:
     return FakeTTSEngine()
 
 
+def _build_recognition(settings: Settings) -> FaceRecognizer:
+    if settings.recognition_backend == "insightface":
+        from projectbuddy.models.recognition.insightface import InsightFaceRecognizer
+
+        return InsightFaceRecognizer(
+            model=settings.insightface_model,
+            device=settings.insightface_device,
+        )
+    from projectbuddy.models.recognition.fake import FakeRecognizer
+
+    return FakeRecognizer()
+
+
 @dataclass
 class Container:
     settings: Settings
@@ -81,6 +102,9 @@ class Container:
     llm: LLMClient
     stt: STTEngine
     tts: TTSEngine
+    recognition: FaceRecognizer
+    face_embeddings: FaceEmbeddingRepo
+    consents: ConsentRepo
 
     @classmethod
     def build(cls, settings: Settings) -> Container:
@@ -104,6 +128,9 @@ class Container:
             llm=_build_llm(settings),
             stt=_build_stt(settings),
             tts=_build_tts(settings),
+            recognition=_build_recognition(settings),
+            face_embeddings=FaceEmbeddingRepo(db),
+            consents=ConsentRepo(db),
         )
 
 

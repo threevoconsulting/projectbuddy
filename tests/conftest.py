@@ -11,7 +11,14 @@ from fastapi.testclient import TestClient
 from projectbuddy.app import create_app
 from projectbuddy.config import Settings
 from projectbuddy.db.engine import Database
-from projectbuddy.db.repositories import FactRepo, MessageRepo, PersonRepo, SessionRepo
+from projectbuddy.db.repositories import (
+    ConsentRepo,
+    FaceEmbeddingRepo,
+    FactRepo,
+    MessageRepo,
+    PersonRepo,
+    SessionRepo,
+)
 
 
 @pytest.fixture
@@ -47,4 +54,6 @@ def repos(db: Database) -> dict[str, object]:
         "facts": FactRepo(db),
         "sessions": SessionRepo(db),
         "messages": MessageRepo(db),
+        "face_embeddings": FaceEmbeddingRepo(db),
+        "consents": ConsentRepo(db),
     }

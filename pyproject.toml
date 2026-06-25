@@ -33,6 +33,7 @@ perception = [
     "insightface>=0.7",
     "onnxruntime>=1.17",
     "numpy>=1.26",
+    "pillow>=10.0",     # decode capture frames before embedding
 ]
 
 [dependency-groups]
@@ -82,6 +83,7 @@ module = [
     "insightface.*",
     "onnxruntime.*",
     "numpy.*",
+    "PIL.*",
     "kokoro.*",
 ]
 ignore_missing_imports = true
