@@ -57,6 +57,13 @@ def _build_tts(settings: Settings) -> TTSEngine:
             voice_path=settings.piper_voice_path,
             binary=settings.piper_binary,
         )
+    if settings.tts_backend == "kokoro":
+        from projectbuddy.models.tts.kokoro import KokoroTTSEngine
+
+        return KokoroTTSEngine(
+            voice=settings.kokoro_voice,
+            lang_code=settings.kokoro_lang,
+        )
     from projectbuddy.models.tts.fake import FakeTTSEngine
 
     return FakeTTSEngine()

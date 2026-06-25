@@ -33,5 +33,7 @@ safe, zero unsafe outputs** (BRD KPI). Expand the corpus as new risks are found.
   windows; a camera-active indicator satisfies notice. See
   [`phase2-perception.md`](phase2-perception.md).
 
-These controls map to COPPA (consent-before-capture, retention, deletion, access), US
-state biometric law (notice + consent), and Canadian PIPEDA / Quebec Law 25.
+This is a **home-use** project, so the children's-privacy legal regime (COPPA, US state
+biometric law, PIPEDA / Quebec Law 25) is not a compliance obligation here. The controls
+above are kept anyway because they're simply good practice for a device a child talks to —
+local-only data, easy deletion, and full transparency for the parent who runs it.

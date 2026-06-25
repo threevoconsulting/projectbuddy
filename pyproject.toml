@@ -23,11 +23,15 @@ mac = [
     "piper-tts>=1.2",
     "webrtcvad>=2.0.10",
     "numpy>=1.26",
+    "kokoro>=0.9",          # optional, more lifelike voice (PB_TTS_BACKEND=kokoro)
 ]
-# Phase 2 face recognition. InspireFace is the commercial-licensable path —
-# do NOT depend on InsightFace pretrained packs (non-commercial).
+# Phase 2 face recognition. This is a personal/home-use project, so the original
+# commercial-license constraint no longer applies — InsightFace's pretrained packs
+# (e.g. buffalo_l), which are non-commercial-only, are fine to use here. InspireFace
+# also works; both sit behind the same FaceRecognizer seam.
 perception = [
-    "inspireface>=1.0",
+    "insightface>=0.7",
+    "onnxruntime>=1.17",
     "numpy>=1.26",
 ]
 
@@ -71,7 +75,15 @@ warn_unused_ignores = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["faster_whisper.*", "piper.*", "webrtcvad.*", "inspireface.*", "numpy.*"]
+module = [
+    "faster_whisper.*",
+    "piper.*",
+    "webrtcvad.*",
+    "insightface.*",
+    "onnxruntime.*",
+    "numpy.*",
+    "kokoro.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

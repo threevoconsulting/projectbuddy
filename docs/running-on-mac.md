@@ -31,9 +31,14 @@ latency and memory.
 ## 3. Run
 
 ```bash
-export PB_PIPER_VOICE_PATH=./models/piper/en_US-amy-medium.onnx   # from pull_models.sh
+export PB_PIPER_VOICE_PATH=./models/piper/en_US-lessac-high.onnx   # from pull_models.sh
 ./scripts/run_mac.sh       # PB_LLM_BACKEND=ollama, STT=faster_whisper, TTS=piper
 ```
+
+**Buddy's voice** is `en_US-lessac-high` by default (clear and friendly); `en_US-amy-medium`
+is a warmer alternative. For a more lifelike voice, set `PB_TTS_BACKEND=kokoro`. Compare
+candidates side by side with `uv run python scripts/compare_voices.py` — it writes a WAV
+per voice to `./voice-samples/` so you can listen and pick.
 
 Open the face full-screen at <http://localhost:8000/app/> and **hold the 🎤 button to
 talk** (push-to-talk); release and Buddy replies, expression first, then voice.

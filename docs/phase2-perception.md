@@ -6,16 +6,19 @@ M7–M9 in the build plan.
 ## Recognition (M7)
 
 - **Capture → Detect → Embed → Match.** The face sends a crop; the backend detects/aligns
-  (SCRFD/RetinaFace-class), embeds (ArcFace-style 512-d via **InspireFace** — the
-  commercial path; **not** InsightFace's non-commercial packs), and matches by cosine
-  similarity against enrolled vectors in SQLite.
+  (SCRFD/RetinaFace-class), embeds (ArcFace-style 512-d), and matches by cosine similarity
+  against enrolled vectors in SQLite.
+- **Embedding model.** This is a **home-use** project, so the original commercial-license
+  constraint no longer applies — **InsightFace** with its standard pretrained packs (e.g.
+  `buffalo_l`) is the simplest path. (InspireFace remains a drop-in alternative behind the
+  same seam if a commercial posture is ever wanted again.)
 - **Enrollment is parent-gated** — blocked unless a valid `consent` row for scope `face`
   exists. Capture several frames, average the embedding, store one vector per person.
 - **Children-specific** — conservative match threshold (avoid sibling confusion) and
   supported re-enrollment (kids' faces change fast).
 - **Templates, not media** — discard frames immediately after embedding; never write child
-  images to disk.
-- Seam: `FaceRecognizer` Protocol with a `fake` adapter (CI) and an InspireFace adapter
+  images to disk. (Still good practice at home: it keeps the data footprint tiny.)
+- Seam: `FaceRecognizer` Protocol with a `fake` adapter (CI) and an InsightFace adapter
   (Mac), mirroring the LLM/STT/TTS pattern.
 
 ## Continuity & privacy (M8)

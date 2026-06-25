@@ -1,9 +1,11 @@
-"""Post-generation child-safety filter (baseline; hardened in M5).
+"""Post-generation child-safety filter (M5).
 
-Every line Buddy is about to speak passes through :func:`check`. This baseline is a
-deny-list of clearly age-inappropriate terms; M5 expands it with the red-team corpus
-and, optionally, a local classifier. The seam is stable: callers only see a
-:class:`SafetyResult` and use ``safe_reply`` when ``blocked`` is true.
+Every line Buddy is about to speak passes through :func:`enforce`; the same
+:func:`check` also screens the child's transcript so unsafe *topics* are redirected
+before they ever reach the model. This is a deny-list grouped by category — fast,
+deterministic, and CI-testable. A local classifier could be added behind the same
+seam later, but a curated list is the dependable backstop and is what the red-team
+gate (``make redteam``) holds to 100%.
 """
 
 from __future__ import annotations
@@ -13,26 +15,24 @@ from dataclasses import dataclass
 
 from projectbuddy.protocol.llm_envelope import BuddyReply, Emotion
 
-# Baseline deny-list. Intentionally conservative; expanded with the red-team set in M5.
-_DENY_TERMS = [
-    "kill",
-    "suicide",
-    "sex",
-    "sexy",
-    "porn",
-    "drug",
-    "cocaine",
-    "gun",
-    "weapon",
-    "blood",
-    "gore",
-    "damn",
-    "hell",
-]
-# Allow a trailing plural "s" (drug → drugs) without matching unrelated words
-# (the word boundary keeps "hell" from matching "hello").
+# Deny-list grouped by category. Conservative on purpose: for a young child, a false
+# block (gentle redirect) is far cheaper than a false allow. Expand as the red-team
+# corpus grows — keep tests/fixtures/redteam.txt in lockstep.
+_DENY_TERMS: dict[str, list[str]] = {
+    "violence": ["kill", "murder", "stab", "shoot", "blood", "gore", "fight", "die", "dead"],
+    "weapons": ["gun", "knife", "weapon", "bomb", "bullet"],
+    "self_harm": ["suicide", "self-harm", "self harm", "hurt myself", "cut myself"],
+    "sexual": ["sex", "sexy", "porn", "naked", "nude"],
+    "substances": ["drug", "cocaine", "heroin", "weed", "alcohol", "beer", "wine", "vape"],
+    "profanity": ["damn", "hell", "crap", "stupid", "idiot", "shut up"],
+    "scary": ["nightmare", "demon", "ghost", "monster", "creepy", "scary"],
+}
+_ALL_TERMS = sorted({t for terms in _DENY_TERMS.values() for t in terms}, key=len, reverse=True)
+
+# Match a whole word/phrase with an optional trailing plural "s" (drug → drugs); word
+# boundaries keep "hell" from matching "hello".
 _DENY_RE = re.compile(
-    r"\b(?:" + "|".join(re.escape(t) for t in _DENY_TERMS) + r")s?\b", re.IGNORECASE
+    r"\b(?:" + "|".join(re.escape(t) for t in _ALL_TERMS) + r")s?\b", re.IGNORECASE
 )
 
 _SAFE_SUBSTITUTE = BuddyReply(
@@ -59,3 +59,4 @@ def enforce(reply: BuddyReply) -> BuddyReply:
     if check(reply.say).blocked:
         return _SAFE_SUBSTITUTE.model_copy(deep=True)
     return reply
+

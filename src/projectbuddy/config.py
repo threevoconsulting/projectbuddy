@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LLMBackend = Literal["fake", "ollama"]
 STTBackend = Literal["fake", "faster_whisper"]
-TTSBackend = Literal["fake", "piper"]
+TTSBackend = Literal["fake", "piper", "kokoro"]
 
 
 class Settings(BaseSettings):
@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # Piper TTS (used only when tts_backend == "piper")
     piper_binary: str = "piper"
     piper_voice_path: str = ""  # path to a downloaded .onnx voice; see pull_models.sh
+
+    # Kokoro TTS (used only when tts_backend == "kokoro")
+    kokoro_voice: str = "af_heart"
+    kokoro_lang: str = "a"  # 'a' = American English
 
     # Data
     db_path: str = "buddy.db"

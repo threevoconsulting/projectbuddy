@@ -64,12 +64,17 @@ make run             # http://127.0.0.1:8000  → face at /app/
 
 ```bash
 uv sync --extra mac
-./scripts/pull_models.sh      # ollama pull + model notes
-./scripts/run_mac.sh          # PB_LLM_BACKEND=ollama, etc.
+./scripts/pull_models.sh      # ollama pull + Piper voices (lessac-high, amy-medium)
+export PB_PIPER_VOICE_PATH=./models/piper/en_US-lessac-high.onnx
+./scripts/run_mac.sh          # LLM=ollama, STT=faster-whisper, TTS=piper
 ```
 
 See [`docs/running-on-mac.md`](docs/running-on-mac.md). The Mac runs the real **LLM**
-(Ollama) plus **voice** — Whisper STT + Piper TTS over `WS /ws/converse`.
+(Ollama) plus **voice** — Whisper STT + Piper TTS over `WS /ws/converse`. Buddy's default
+voice is `en_US-lessac-high`; for a more lifelike one set `PB_TTS_BACKEND=kokoro`. Compare
+voices with `uv run python scripts/compare_voices.py` (writes a WAV per voice to
+`./voice-samples/`). Latency + streaming are checked on the real stack with
+`uv run pytest -m smoke_mac` (deselected in CI).
 
 ## Make targets
 
