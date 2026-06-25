@@ -1,4 +1,4 @@
-.PHONY: setup lint format types test redteam run run-mac clean
+.PHONY: setup lint format types test redteam run run-mac cert clean
 
 # Dev setup — fakes only, no model runtimes. Fast and CI-safe.
 setup:
@@ -33,6 +33,10 @@ run-mac:
 	PB_LLM_BACKEND=ollama PB_STT_BACKEND=faster_whisper PB_TTS_BACKEND=kokoro \
 	PB_RECOGNITION_BACKEND=insightface \
 		uv run uvicorn projectbuddy.app:create_app --factory --host $${PB_HOST:-0.0.0.0} --port $${PB_PORT:-8765}
+
+# Generate a locally-trusted HTTPS cert (mkcert) so a LAN tablet gets camera/mic.
+cert:
+	./scripts/make_cert.sh
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache **/__pycache__

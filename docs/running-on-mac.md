@@ -59,10 +59,22 @@ consent, delete).
 `PB_LIVENESS_MODEL=<path-to-minifasnet.onnx>` to reject printed-photo spoofs at enroll/
 recognize. Without it (default `fake`), liveness is permissive.
 
-> **Microphone access** needs a secure context: `localhost` works directly, but an iPad
-> pointed at the Mac over Wi-Fi (`http://<mac-ip>:8765/app/`) will not get mic permission
-> over plain HTTP — front it with HTTPS (e.g. a local reverse proxy) for the tablet
-> "device on the desk" demo. The text box works everywhere as a fallback.
+### HTTPS for a tablet on the desk
+**Mic and camera need a secure context.** `localhost` is fine, but an iPad pointed at the
+Mac over Wi-Fi (`http://<mac-ip>:8765/...`) gets neither over plain HTTP. Generate a
+locally-trusted cert (no public/internet certificate — fits the local-first stance):
+
+```bash
+brew install mkcert nss   # one-time
+make cert                 # writes ./certs/ for localhost + this Mac's LAN IP
+./scripts/run_mac.sh      # auto-serves https:// when ./certs/ exists
+```
+
+Then on the iPad, trust the local CA once: AirDrop `"$(mkcert -CAROOT)/rootCA.pem"`, open it,
+install the profile, and enable it under **Settings → General → About → Certificate Trust
+Settings**. Now `https://<mac-ip>:8765/app/` has full camera + mic + voice. The WebSocket
+upgrades to `wss://` automatically. (The text box works over plain HTTP everywhere as a
+fallback.)
 
 ## 4. Smoke-test (M4+)
 

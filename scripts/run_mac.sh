@@ -21,5 +21,16 @@ if [[ "$PB_TTS_BACKEND" == "piper" && -z "$PB_PIPER_VOICE_PATH" ]]; then
   echo "     PB_TTS_BACKEND=fake to run without a voice." >&2
 fi
 
-echo "==> Starting Buddy (LLM=$PB_LLM_BACKEND) on http://$PB_HOST:$PB_PORT  (face at /app/)"
-uv run uvicorn projectbuddy.app:create_app --factory --host "$PB_HOST" --port "$PB_PORT"
+# Serve over HTTPS when a cert exists (so a LAN tablet gets camera/mic). See make_cert.sh.
+CERT="${PB_SSL_CERTFILE:-./certs/buddy.pem}"
+KEY="${PB_SSL_KEYFILE:-./certs/buddy-key.pem}"
+SSL_ARGS=()
+SCHEME="http"
+if [[ -f "$CERT" && -f "$KEY" ]]; then
+  SSL_ARGS=(--ssl-certfile "$CERT" --ssl-keyfile "$KEY")
+  SCHEME="https"
+fi
+
+echo "==> Starting Buddy (LLM=$PB_LLM_BACKEND) on $SCHEME://$PB_HOST:$PB_PORT  (face at /app/)"
+uv run uvicorn projectbuddy.app:create_app --factory --host "$PB_HOST" --port "$PB_PORT" \
+  ${SSL_ARGS[@]+"${SSL_ARGS[@]}"}
