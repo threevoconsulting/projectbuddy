@@ -22,7 +22,7 @@ class OllamaLLMClient:
         num_ctx: int = 2048,
         num_predict: int = 128,
         keep_alive: str = "30m",
-        timeout: float = 30.0,
+        timeout: float = 60.0,
     ) -> None:
         self._url = url.rstrip("/")
         self._model = model

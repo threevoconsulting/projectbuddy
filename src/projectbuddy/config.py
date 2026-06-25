@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     llm_num_ctx: int = 2048  # smaller window = faster prompt processing; replies are tiny
     llm_num_predict: int = 200  # cap generation (format:json stops earlier on short replies)
     llm_keep_alive: str = "30m"  # keep the model resident between turns (no reload latency)
+    llm_timeout: float = 60.0  # HTTP timeout for an Ollama call (cold model load can be slow)
 
     # faster-whisper STT (used only when stt_backend == "faster_whisper")
     whisper_model: str = "base"  # tiny | base | small (latency/accuracy trade-off)

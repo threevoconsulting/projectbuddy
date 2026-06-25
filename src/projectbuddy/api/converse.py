@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from projectbuddy.core import safety
-from projectbuddy.core.output_parser import parse_reply
 from projectbuddy.db.repositories import Person, SessionRow
 from projectbuddy.deps import Container, get_container
+from projectbuddy.orchestrator.turn import safe_reply
 from projectbuddy.protocol.rest import ConverseTextRequest, ConverseTextResponse
 
 router = APIRouter()
@@ -39,9 +38,7 @@ async def converse_text(
     messages = c.memory.build_context(
         person_id=person.id, session_id=session.id, child_text=req.text
     )
-    raw = await c.llm.chat(messages, json=True)
-    reply = await parse_reply(raw, messages, c.llm)
-    reply = safety.enforce(reply)
+    reply = await safe_reply(c, messages)
 
     c.memory.commit_turn(
         person_id=person.id, session_id=session.id, child_text=req.text, reply=reply

@@ -39,6 +39,7 @@ def _build_llm(settings: Settings) -> LLMClient:
             num_ctx=settings.llm_num_ctx,
             num_predict=settings.llm_num_predict,
             keep_alive=settings.llm_keep_alive,
+            timeout=settings.llm_timeout,
         )
     from projectbuddy.models.llm.fake import FakeLLMClient
 

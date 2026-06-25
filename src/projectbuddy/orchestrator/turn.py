@@ -12,12 +12,15 @@ changes the instant it "decides" how to feel, while TTS is still synthesizing.
 from __future__ import annotations
 
 import base64
+import logging
 from collections.abc import AsyncIterator
 
 from projectbuddy.core import safety
 from projectbuddy.core.output_parser import parse_reply
 from projectbuddy.db.repositories import Person, SessionRow
 from projectbuddy.deps import Container
+from projectbuddy.models.llm.base import ChatMessage
+from projectbuddy.protocol.llm_envelope import BuddyReply, Emotion
 from projectbuddy.protocol.ws import (
     AudioFrame,
     EmotionFrame,
@@ -25,6 +28,26 @@ from projectbuddy.protocol.ws import (
     ServerFrame,
     StateFrame,
 )
+
+_log = logging.getLogger("uvicorn.error")
+
+# Spoken when the brain is too slow / errors / returns nothing — never crash a turn.
+_BRAIN_HICCUP = BuddyReply(
+    emotion=Emotion.confused,
+    say="My brain went quiet for a second. Can you say that again?",
+    remember=[],
+)
+
+
+async def safe_reply(c: Container, messages: list[ChatMessage]) -> BuddyReply:
+    """LLM + parse + safety, but never raise: a slow/failed brain → a gentle fallback."""
+    try:
+        raw = await c.llm.chat(messages, json=True)
+        reply = await parse_reply(raw, messages, c.llm)
+    except Exception as exc:  # httpx timeout, connection error, etc.
+        _log.warning("brain error, using fallback: %r", exc)
+        reply = _BRAIN_HICCUP.model_copy(deep=True)
+    return safety.enforce(reply)
 
 
 def resolve_session(c: Container, session_id: int | None) -> tuple[Person, SessionRow] | None:
@@ -56,9 +79,7 @@ async def run_turn(
     messages = c.memory.build_context(
         person_id=person.id, session_id=session.id, child_text=transcript
     )
-    raw = await c.llm.chat(messages, json=True)
-    reply = await parse_reply(raw, messages, c.llm)
-    reply = safety.enforce(reply)
+    reply = await safe_reply(c, messages)
 
     # Face leads the voice: emotion before any audio. The `speaking` state then
     # tells the client the reply is on its way (so the face leaves `thinking` even
@@ -93,9 +114,7 @@ async def run_greeting(
         display_name=display_name or person.display_name,
         role=person.role,
     )
-    raw = await c.llm.chat(messages, json=True)
-    reply = await parse_reply(raw, messages, c.llm)
-    reply = safety.enforce(reply)
+    reply = await safe_reply(c, messages)
 
     yield EmotionFrame(value=reply.emotion)
     yield StateFrame(value="speaking")
