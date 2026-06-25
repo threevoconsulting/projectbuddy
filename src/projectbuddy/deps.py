@@ -7,6 +7,7 @@ change only; nothing downstream imports a concrete backend.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from fastapi import Request
@@ -27,6 +28,8 @@ from projectbuddy.models.llm.base import LLMClient
 from projectbuddy.models.recognition.base import FaceRecognizer
 from projectbuddy.models.stt.base import STTEngine
 from projectbuddy.models.tts.base import TTSEngine
+
+_log = logging.getLogger("uvicorn.error")
 
 
 def _build_llm(settings: Settings) -> LLMClient:
@@ -128,6 +131,16 @@ class Container:
 
     @classmethod
     def build(cls, settings: Settings) -> Container:
+        llm_detail = settings.ollama_model if settings.llm_backend == "ollama" else "-"
+        _log.info(
+            "backends: llm=%s(%s) stt=%s tts=%s recognition=%s liveness=%s",
+            settings.llm_backend,
+            llm_detail,
+            settings.stt_backend,
+            settings.tts_backend,
+            settings.recognition_backend,
+            settings.liveness_backend,
+        )
         db = Database(settings.db_path)
         facts = FactRepo(db)
         sessions = SessionRepo(db)
