@@ -54,6 +54,7 @@ def _build_stt(settings: Settings) -> STTEngine:
             device=settings.whisper_device,
             compute_type=settings.whisper_compute_type,
             language=settings.whisper_language,
+            vad_filter=settings.whisper_vad,
         )
     from projectbuddy.models.stt.fake import FakeSTTEngine
 

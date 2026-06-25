@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
     whisper_language: str = "en"
+    whisper_vad: bool = True  # VAD trims silence; turn off if short kid speech gets dropped
 
     # Piper TTS (used only when tts_backend == "piper")
     piper_binary: str = "piper"

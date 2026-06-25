@@ -16,6 +16,8 @@ window.BuddyAudio = (function () {
   let workletNode = null;
   let sourceNode = null;
   let mediaStream = null;
+  let captureAcc = []; // pending 16 kHz Int16 samples, flushed in ~100 ms chunks
+  let captureSink = null; // onChunk callback for the active capture
 
   let playCtx = null;
   let nextStartTime = 0;
@@ -34,25 +36,58 @@ window.BuddyAudio = (function () {
     return new Int16Array(bytes.buffer);
   }
 
+  const FLUSH_SAMPLES = STT_RATE / 10; // ~100 ms of 16 kHz audio per WS chunk
+
+  function flushCapture(force) {
+    if (!captureSink) return;
+    while (captureAcc.length >= FLUSH_SAMPLES) {
+      captureSink(int16ToBase64(Int16Array.from(captureAcc.splice(0, FLUSH_SAMPLES))));
+    }
+    if (force && captureAcc.length) {
+      captureSink(int16ToBase64(Int16Array.from(captureAcc.splice(0))));
+    }
+  }
+
   async function startCapture(onChunk) {
+    captureSink = onChunk;
+    captureAcc = [];
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
     });
-    captureCtx = new AudioContext();
+    // Ask for a 16 kHz context so the browser resamples cleanly (proper anti-alias
+    // filter); fall back to the hardware rate + an averaging downsample if it won't.
+    try {
+      captureCtx = new AudioContext({ sampleRate: STT_RATE });
+    } catch (_) {
+      captureCtx = new AudioContext();
+    }
     await captureCtx.audioWorklet.addModule('/app/js/capture-worklet.js');
     sourceNode = captureCtx.createMediaStreamSource(mediaStream);
     workletNode = new AudioWorkletNode(captureCtx, 'buddy-capture');
 
-    const ratio = captureCtx.sampleRate / STT_RATE; // e.g. 48000/16000 = 3
+    const ratio = captureCtx.sampleRate / STT_RATE; // ~1 if the context honored 16 kHz
+    let carry = 0; // fractional read position carried across render quanta
     workletNode.port.onmessage = (e) => {
       const input = e.data; // Float32Array at captureCtx.sampleRate
-      const outLen = Math.floor(input.length / ratio);
-      const out = new Int16Array(outLen);
-      for (let i = 0; i < outLen; i++) {
-        const v = input[Math.floor(i * ratio)] || 0;
-        out[i] = Math.max(-1, Math.min(1, v)) * 32767;
+      if (ratio <= 1.01) {
+        for (let i = 0; i < input.length; i++) {
+          captureAcc.push(Math.max(-1, Math.min(1, input[i])) * 32767);
+        }
+      } else {
+        // Average each source window into one output sample (basic anti-aliasing).
+        let pos = carry;
+        while (pos < input.length) {
+          const start = Math.floor(pos);
+          const end = Math.min(input.length, Math.max(start + 1, Math.floor(pos + ratio)));
+          let sum = 0;
+          for (let j = start; j < end; j++) sum += input[j];
+          const v = sum / (end - start);
+          captureAcc.push(Math.max(-1, Math.min(1, v)) * 32767);
+          pos += ratio;
+        }
+        carry = pos - input.length;
       }
-      if (outLen > 0) onChunk(int16ToBase64(out));
+      flushCapture(false);
     };
 
     sourceNode.connect(workletNode);
@@ -65,11 +100,14 @@ window.BuddyAudio = (function () {
   }
 
   function stopCapture() {
+    flushCapture(true); // send the trailing <100 ms so the last word isn't clipped
     if (sourceNode) sourceNode.disconnect();
     if (workletNode) workletNode.disconnect();
     if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
     if (captureCtx) captureCtx.close();
     captureCtx = workletNode = sourceNode = mediaStream = null;
+    captureSink = null;
+    captureAcc = [];
   }
 
   function resetPlayback() {
