@@ -20,6 +20,8 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Reserve room at the bottom so the caption never hides behind the fixed control bar. */
+  padding: 12px 0 104px;
   position: relative;
   background:
     radial-gradient(ellipse at 30% 30%, rgba(90,180,255,0.06) 0%, transparent 60%),
@@ -27,8 +29,8 @@ html, body {
 }
 
 #face {
-  width: min(60vh, 90vw);
-  height: min(60vh, 90vw);
+  width: min(54vh, 80vw);
+  height: min(54vh, 80vw);
 }
 
 /* Caption: what Buddy just said */
@@ -112,7 +114,11 @@ body.kiosk #controls { display: none; }
   font-family: inherit; font-weight: 800; font-size: 14px;
   color: #fff; background: #22c55e;
   padding: 10px 16px; border-radius: 10px;
-  touch-action: none; user-select: none;
+  /* Hold-to-talk: stop the mobile long-press from selecting text or opening the
+     callout/context menu, which interrupts the press. */
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 #talk-btn.active { background: #ff6b6b; box-shadow: 0 0 0 4px rgba(255,107,107,0.3); }
 

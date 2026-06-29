@@ -435,6 +435,9 @@ if (params.get('mock') === '1') {
   talkBtn.addEventListener('pointerup', release);
   talkBtn.addEventListener('pointerleave', release);
   talkBtn.addEventListener('pointercancel', release);
+  // Block the Android long-press menu ("download"/select) so holding to talk works.
+  talkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  talkBtn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
 
   if (KIOSK) {
     voice.open();
