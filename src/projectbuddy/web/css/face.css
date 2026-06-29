@@ -14,6 +14,7 @@ html, body {
 
 #stage {
   height: 100vh;
+  height: 100dvh; /* dvh excludes the mobile browser toolbars so nothing hides below the fold */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,9 +75,14 @@ html, body {
 /* Bottom control bar — the Phase-1 text demo; voice (M4) will replace the input.
    Hidden in kiosk mode (?kiosk=1). */
 #controls {
-  position: absolute;
-  bottom: 24px;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(16px, env(safe-area-inset-bottom));
   display: flex;
+  flex-wrap: wrap; /* narrow tablets in portrait: let the buttons wrap instead of clipping */
+  justify-content: center;
+  max-width: 96vw;
   gap: 8px;
   align-items: center;
   background: rgba(255,255,255,0.06);
